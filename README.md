@@ -1,0 +1,9 @@
+# autopilot
+
+This is my project to create an autopilot for my boat. I started out with arduinomega but I had difficulties to get a compass signal that was both fast an with low noise. I used Madgwicks sensor fusion algorithm but the arduino just managed to get magnetometer samples at 20 Hz. That gave a very noisy signal.
+
+My boat is very volatile in low speeds. In speeds above 8 knots there are no problems.
+
+This project uses a Raspberry Pi 3 and so far there are just different tests of sensors, filters etc but as soon there will be anything useful for others I will note it here in readme.
+
+Anders
