@@ -6,7 +6,10 @@
 #include <math.h>
 #include <stdbool.h>
 
-// Just testing editingin gitub
+
+// Just testing editingin git
+
+// One more change for testing purposes
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_cblas.h>
 #include <gsl/gsl_blas.h>
