@@ -25,7 +25,7 @@ double elapsed(struct timeval t1, struct timeval t0){
 
 int main() {
 	int adcHandle;
-	//struct timeval t0, t1;
+	struct timeval t0, t1;
 	
 	wiringPiSetup();
 	pinMode(6, INPUT);
@@ -44,8 +44,8 @@ int main() {
 	unsigned char ctrl[5];
 	ctrl[0] = 0x43;		// WREG cmd, write 4 register starting at 0x00
 	ctrl[1] = 0x80;
-	ctrl[2] = 0x04;
-	ctrl[3] = 0x00;
+	ctrl[2] = 0xC4;
+	ctrl[3] = 0xC0;
 	ctrl[4] = 0x00;
 	ioc = wiringPiSPIDataRW(0, ctrl, 5);
 	printf("Mode set return should be > -1: %d\n", ioc);
@@ -56,6 +56,11 @@ int main() {
 	cmd[1] = 0x00;
 	ioc = wiringPiSPIDataRW(0, cmd, 1);
 	printf("Start/sync command, return should be > -1: %d\n", ioc);
+	
+	int fsRaw = 0x7fffff;		// Full scale digital
+	double fsU = 3.3;			// Full scale volts
+	double fu = 0;				// Filtered voltage
+	double fk = 0.1;			// Filter constant
 		
 	// Endless read loop
 	for (;;) {
@@ -72,7 +77,18 @@ int main() {
 			//printf("Mode set return should be > -1: %d\n", ioc);
 			//printf("MRead data = : %#x  %#x  %#x\n", rData[1], rData[2], rData[3]);
 			int res = rData[1] * 256 * 256 + rData[2] * 256 + rData[3];
-			printf("%#x  %d\n", res, res);
+			printf("%#x  %d  ", res, res);
+			
+			double u = res * fsU / fsRaw;	// Conversion to Volt
+			printf("%f  ", u);  
+			
+			fu = u * fk + (1.0 - fk) * fu; 		// Digital filter
+			printf("%f", fu);  
+			
+			gettimeofday(&t1, NULL);		// dt = time between iterations
+			double dt = elapsed(t1, t0);
+			t0 = t1;
+			printf("    %f \n ", dt);
 		}
 	}
 
