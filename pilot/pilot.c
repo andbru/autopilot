@@ -17,6 +17,7 @@
 double elapsed(struct timeval t1, struct timeval t0);
 void initRudder(void);
 int pollRudder(double *angel);
+void actuateRudder(double rudderSet, double rudderIs);
 void initKnob(void);
 int pollKnob(int *mode, double *yawCmd);
 
@@ -26,7 +27,7 @@ int pollKnob(int *mode, double *yawCmd);
 int main() {
 
 	double rudderIs = 0;
-	struct timeval t0, t1;
+	struct timeval t0, t1, tRud0, tRud1;
 	int mode = 0;
 	double yawCmd = 0;
 	
@@ -35,6 +36,7 @@ int main() {
 	initKnob();
 	
 	mode = 1;
+	gettimeofday(&tRud0, NULL);
 	
 	// Endless main loop
 	for (;;) {
@@ -51,6 +53,12 @@ int main() {
 		
 		int newMode = pollKnob(&mode, &yawCmd);
 		if(newMode) printf("%d  %f\n", mode, yawCmd);
+		
+		gettimeofday(&tRud1, NULL);
+		if(elapsed(tRud1, tRud0) > 10.0) {
+			tRud0 = tRud1;
+			actuateRudder(yawCmd, rudderIs);
+		}
 	}
 
 	return 0;
@@ -68,7 +76,8 @@ double elapsed(struct timeval t1, struct timeval t0){
 
 
 void initRudder(void) {
-
+	
+	// Initialize ad-converter
 	int adcHandle;
 	
 	pinMode(6, INPUT);
@@ -99,6 +108,14 @@ void initRudder(void) {
 	cmd[1] = 0x00;
 	ioc = wiringPiSPIDataRW(0, cmd, 1);
 	printf("Start/sync command, return should be > -1: %d\n", ioc);
+	
+	// Initialize PWM outputs
+	pinMode(25, OUTPUT);				// EA
+	pinMode(1, PWM_OUTPUT);		// PA
+	pinMode(24, PWM_OUTPUT);		// PB
+	pwmSetMode( PWM_MODE_MS);
+	pwmSetRange(1024);
+	pwmSetClock(32);
 }
 
 
@@ -139,6 +156,44 @@ int pollRudder(double *angel) {
 	return 0;
 }
 
+
+void actuateRudder(double rudderSet, double rudderIs) {
+	double rudderMax = 20.0;
+	double rudderMin = -20.0;
+	double db = 0.035;
+	double slow = 0.14;
+	double pFast = 800;
+	double pSlow = 200;
+	
+	if(rudderIs < rudderMin) return;
+	if(rudderIs > rudderMax) return;
+	
+	int out = 0;
+	double dr = rudderSet - rudderIs;
+	if(dr < -slow) out = - pFast;
+	if((-slow < dr) && (dr < -db)) out = - pSlow;
+	if((-db < dr) && (dr < db)) out = 0;
+	if((db < dr) && (dr < slow)) out = pSlow;
+	if( dr > slow) out = pFast;
+	
+	if(out > 0) {
+		digitalWrite(25, HIGH);
+		pwmWrite(1, 0);
+		pwmWrite(24, out);
+	}
+	if(out < 0) {
+		digitalWrite(25, HIGH);	
+		pwmWrite(24, 0);
+		pwmWrite(1, -out);
+	}
+	if(out == 0) {
+		digitalWrite(25, LOW);
+		pwmWrite(1, 0);
+		pwmWrite(24, 0);	
+	}
+	
+	return;
+}
 
 void initKnob(void) {
 
