@@ -20,6 +20,7 @@ int pollRudder(double *angel);
 void actuateRudder(double rudderSet, double rudderIs);
 void initKnob(void);
 int pollKnob(int *mode, double *yawCmd);
+void PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot);
 
 // Globals
 
@@ -28,8 +29,12 @@ int main() {
 
 	double rudderIs = 0;
 	struct timeval t0, t1, tRud0, tRud1;
+	struct timeval tReg0, tReg1;
 	int mode = 0;
 	double yawCmd = 0;
+	double yawIs = 0;
+	double w = 0;
+	double wDot = 0;
 	
 	wiringPiSetup();	
 	initRudder();
@@ -37,10 +42,12 @@ int main() {
 	
 	mode = 1;
 	gettimeofday(&tRud0, NULL);
+	gettimeofday(&tReg0, NULL);
 	
 	// Endless main loop
 	for (;;) {
-	
+		
+		//  Poll rudder angel every milli second and filter angel
 		int newAngel = pollRudder(&rudderIs);
 		if(newAngel) {
 			printf("%f  %d  %f  ", rudderIs, mode, yawCmd);
@@ -51,13 +58,25 @@ int main() {
 			printf("    %f \n ", dt);
 		}
 		
+		//  Poll command knob
 		int newMode = pollKnob(&mode, &yawCmd);
 		if(newMode) printf("%d  %f\n", mode, yawCmd);
+				
+		//  Call PID regulator 10 times per second independent of mode.
+		//  That gives PID opportunity to follow compass in standby
+		gettimeofday(&tReg1, NULL);
+		if(elapsed(tReg1, tReg0) > 10.0) {
+			tReg0 = tReg1;
+			PIDAreg(mode, yawCmd, yawIs, w, wDot);
+		}
 		
-		gettimeofday(&tRud1, NULL);
-		if(elapsed(tRud1, tRud0) > 10.0) {
-			tRud0 = tRud1;
-			actuateRudder(yawCmd, rudderIs);
+		//  Call rudder actuator 100 times per second if mode == 2
+		if(mode == 2) {
+			gettimeofday(&tRud1, NULL);
+			if(elapsed(tRud1, tRud0) > 10.0) {
+				tRud0 = tRud1;
+				actuateRudder(yawCmd, rudderIs);
+			}
 		}
 	}
 
@@ -160,9 +179,9 @@ int pollRudder(double *angel) {
 void actuateRudder(double rudderSet, double rudderIs) {
 	double rudderMax = 20.0;
 	double rudderMin = -20.0;
-	double db = 0.035;
-	double slow = 0.14;
-	double pFast = 800;
+	double db = 0.035;		//  Dead band
+	double slow = 0.14;		// Slow speed interval
+	double pFast = 800;		// Max 1024
 	double pSlow = 200;
 	
 	if(rudderIs < rudderMin) return;
@@ -240,4 +259,31 @@ int pollKnob(int *mode, double *yawCmd) {
 	}
 	
 	return 0;
+}
+
+
+void PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
+
+	// Reference model for setpoint limitation.(Fossen chapter 10.2.1)
+	static double dt = 0.1;	// Time interval for PID reg in seconds
+	static double rdmax = 3.0 *3.14 /180;		// Desired max rate 3 deg into radians
+	static double admax = 1.0 *3.14 /180;	// Desired max accelration 1 deg into radians
+	static double xsi = 2.0;		// Damper spring and
+	static double ws = 0.63;	//    lp filter constants
+	static double psid = 0;		//  Desired yaw in rad
+	static double rd = 0;			//  Desired angular rate
+	static double ad = 0;		//  Desired angular accelration
+	
+	psid = dt * rd + psid;
+	
+	rd = dt * ad + rd;
+	if(rd >=   rdmax) rd =   rdmax;		//  Rate saturation
+	if(rd <= - rdmax) rd = - rdmax;
+	
+	ad = -dt*(2*xsi+1)*ws*ad -dt*(2*xsi+1)*ws*ws*rd -dt*ws*ws*ws*(psid-yawCmd*3.14/180) +ad;
+	if(ad >=   admax) ad =   admax;	//  Accelration saturation
+	if(ad <= - admax) ad = - admax;
+	
+	printf("\n%f %f %f\n", psid/3.14*180, rd, ad);
+
 }
