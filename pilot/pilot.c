@@ -19,7 +19,7 @@ void initRudder(void);
 int pollRudder(double *angel);
 void actuateRudder(double rudderSet, double rudderIs);
 void initKnob(void);
-int pollKnob(int *mode, double *yawCmd);
+int pollKnob(int *mode, double *yawCmd, double yawIs);
 void PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot);
 
 // Globals
@@ -59,7 +59,7 @@ int main() {
 		}
 		
 		//  Poll command knob
-		int newMode = pollKnob(&mode, &yawCmd);
+		int newMode = pollKnob(&mode, &yawCmd, yawIs);
 		if(newMode) printf("%d  %f\n", mode, yawCmd);
 				
 		//  Call PID regulator 10 times per second independent of mode.
@@ -226,7 +226,7 @@ void initKnob(void) {
 }
 
 
-int pollKnob(int *mode, double *yawCmd) {
+int pollKnob(int *mode, double *yawCmd, double yawIs) {
 	
 	static int clk0 = 1;
 	static int clk1 = 1;
@@ -250,7 +250,11 @@ int pollKnob(int *mode, double *yawCmd) {
 		if(dt1 == 1) upDown--; else upDown++;
 	}
 	clk0 = clk1;
-	*yawCmd += upDown * degPerClick;
+	
+	// Let setpoint yawCmd follow yawIs if autopilot not active
+	if(*mode == 2) {
+		*yawCmd += upDown * degPerClick;
+	} else *yawCmd = yawIs;
 	
 	if(sw == 0) swCount--; else 	swCount = swStart;	
 	if(swCount == 0) {
@@ -263,7 +267,10 @@ int pollKnob(int *mode, double *yawCmd) {
 
 
 void PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
-
+	
+	// Let setpoint yawCmd follow yawIs if autopilot not active
+	//if(mode != 2) yawCmd = yawIs;
+	
 	// Reference model for setpoint limitation.(Fossen chapter 10.2.1)
 	static double dt = 0.1;	// Time interval for PID reg in seconds
 	static double rdmax = 3.0 *3.14 /180;		// Desired max rate 3 deg into radians
@@ -285,5 +292,10 @@ void PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	if(ad <= - admax) ad = - admax;
 	
 	printf("\n%f %f %f\n", psid/3.14*180, rd, ad);
+	
+	
+	//  PID-regulator with accelration feedback (Fossen capter 12.2.6
+	//  Formulas 12.154 and 12.155 and differentiated filtered accelration 12.153)
+	
 
 }
