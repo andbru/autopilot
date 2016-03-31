@@ -20,7 +20,7 @@ int pollRudder(double *angel);
 void actuateRudder(double rudderSet, double rudderIs);
 void initKnob(void);
 int pollKnob(int *mode, double *yawCmd, double yawIs);
-void PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot);
+double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot);
 
 // Globals
 
@@ -64,10 +64,11 @@ int main() {
 				
 		//  Call PID regulator 10 times per second independent of mode.
 		//  That gives PID opportunity to follow compass in standby
+		double rudderSet;
 		gettimeofday(&tReg1, NULL);
 		if(elapsed(tReg1, tReg0) > 10.0) {
 			tReg0 = tReg1;
-			PIDAreg(mode, yawCmd, yawIs, w, wDot);
+			rudderSet = PIDAreg(mode, yawCmd, yawIs, w, wDot);
 		}
 		
 		//  Call rudder actuator 100 times per second if mode == 2
@@ -75,7 +76,7 @@ int main() {
 			gettimeofday(&tRud1, NULL);
 			if(elapsed(tRud1, tRud0) > 10.0) {
 				tRud0 = tRud1;
-				actuateRudder(yawCmd, rudderIs);
+				actuateRudder(yawCmd, rudderIs);		//  ATTENTION change yawCmd to rudderSet to connect regulator
 			}
 		}
 	}
@@ -266,10 +267,7 @@ int pollKnob(int *mode, double *yawCmd, double yawIs) {
 }
 
 
-void PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
-	
-	// Let setpoint yawCmd follow yawIs if autopilot not active
-	//if(mode != 2) yawCmd = yawIs;
+double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	
 	// Reference model for setpoint limitation.(Fossen chapter 10.2.1)
 	static double dt = 0.1;	// Time interval for PID reg in seconds
@@ -296,6 +294,41 @@ void PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	
 	//  PID-regulator with accelration feedback (Fossen capter 12.2.6
 	//  Formulas 12.154 and 12.155 and differentiated filtered accelration 12.153)
+	static double Knomoto = 0.34;		// Typical for 6 knots
+	static double Tnomoto = 0.;		// Independaent of speed
+	static double integralPsiTilde = 0;
+	double psiTilde = yawIs - psid;		// diff from desired setpoint
+	if(psiTilde < -3.14) psiTilde += 2 * 3.14;	// Ensure -pi < angel <pi
+	if(psiTilde > 3.14) psiTilde -= 2 * 3.14;
 	
-
+	integralPsiTilde += psiTilde * dt;	// Integral diff
+	
+	double rTilde = w -rd;		// Diff in angular rate
+	
+	static double wb = 1;
+	static double alfa = 0;
+	double m = Tnomoto / Knomoto;
+	double wn = 1.56 * wb;
+	double Km;
+	double Kp;
+	double Kd;
+	double Ki;
+	// If true - automatic parameter calculation from wb and alfa
+	if(true) {
+		Km = alfa / 100 * m;
+		Kp = (m + Km) * wn * wn;
+		Kd = 2 * 1 * wn *(m + Km) - m / Tnomoto;
+		Ki = wn * 10 * Kp;
+	} else {
+		Km = 0;
+		Kp = 3;
+		Kd = 0.5;
+		Ki = 0.1;
+	}
+		
+	double tauFF = (m +Km) * (ad + rd / Tnomoto);
+	
+	double rudderMoment = tauFF - Kp * psiTilde - Kd * rTilde -Ki * integralPsiTilde -Km * wDot;
+	
+	return rudderMoment / 3.14 * 180;
 }
