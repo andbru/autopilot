@@ -1,8 +1,8 @@
  
- #include <stdio.h>
- #include <unistd.h>
- #include <fcntl.h>
- #include <sys/ioctl.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
@@ -22,7 +22,7 @@ void actuateRudder(double rudderSet, double rudderIs);
 void initKnob(void);
 int pollKnob(int *mode, double *yawCmd, double yawIs);
 void initCmd(void);
-int pollCmd(void);
+int pollCmd(double *cmdIncDec);
 double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot);
 
 // Globals
@@ -39,6 +39,7 @@ int main() {
 	double yawIs = 0;
 	double w = 0;
 	double wDot = 0;
+	double cmdIncDec = 0;
 	
 	wiringPiSetup();	
 	initRudder();
@@ -69,7 +70,9 @@ int main() {
 		//if(newMode) printf("%d  %f\n", mode, yawCmd);
 		
 		// Poll cmd
-		if(pollCmd() < 0) return -1;;
+		if(pollCmd(&cmdIncDec) < 0) return -1;
+		yawCmd += cmdIncDec * 2;
+		cmdIncDec = 0;
 				
 		//  Call PID regulator 10 times per second independent of mode.
 		//  That gives PID opportunity to follow compass in standby
@@ -284,31 +287,33 @@ int pollKnob(int *mode, double *yawCmd, double yawIs) {
 void initCmd(void) {
 
 	initscr();
-	WINDOW *wp = initscr();
+	//WINDOW *wp = initscr();
 	cbreak();
-	nodelay(wp, TRUE);
+	//nodelay(wp, TRUE);
 	nodelay(stdscr, TRUE);
 }
 
 
-int pollCmd(void) {
-
-	static char *buf[100];
+int pollCmd(double *cmdIncDec) {
+	double gain = 0.5;	// Gearing deg per click
 	
 	int cht;
-	if((cht = getch()) == ERR) {
+	if((cht = getch()) == ERR) {		// I don't really understand this, but testing for ERR works here
+										// but testing for KEY_RIGHT in the switch-statement further down doesn't work
 		// Do nothing
 		return 0;
 	}
 	else {
 		inputc = cht;
-		if(cht == '\n') {
-			// Evaluate line
+
+		switch (cht) {	
+			case 67:		// Increment, testing for 67 instead of KEY_RIGHT works, but be aware that these values 			
+				*cmdIncDec += gain;	// also represends capital letters in the beginning of the alphabeth
+				return 1;	
+			case 68:		// Decrement
+				*cmdIncDec += -gain;
+				return 1;	
 		}
-		else {
-			endwin();
-			return -1;;
-		}			
 	}
 }
 
@@ -335,7 +340,7 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	if(ad >=   admax) ad =   admax;	//  Accelration saturation
 	if(ad <= - admax) ad = - admax;
 	
-	printf("\r\n%d  %d   %f %f %f\r\n", mode, inputc, psid/3.14*180, rd, ad);
+	printf("\r\n%d  %d   %f   %f %f %f\r\n", mode, inputc, yawCmd, psid/3.14*180, rd, ad);
 	
 	
 	//  PID-regulator with accelration feedback (Fossen capter 12.2.6
