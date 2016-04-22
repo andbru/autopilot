@@ -11,6 +11,7 @@
 #include <wiringPi.h>
 #include <wiringPiSPI.h>
 #include <linux/spi/spidev.h>
+#include<ncurses.h>
 
 
 // Function prototypes, code at the end
@@ -20,9 +21,12 @@ int pollRudder(double *angel);
 void actuateRudder(double rudderSet, double rudderIs);
 void initKnob(void);
 int pollKnob(int *mode, double *yawCmd, double yawIs);
+void initCmd(void);
+int pollCmd(void);
 double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot);
 
 // Globals
+char inputc = NULL;
 
 	
 int main() {
@@ -39,28 +43,33 @@ int main() {
 	wiringPiSetup();	
 	initRudder();
 	initKnob();
+	initCmd();
 	
 	mode = 1;
 	gettimeofday(&tRud0, NULL);
 	gettimeofday(&tReg0, NULL);
+
 	
 	// Endless main loop
 	for (;;) {
 		
-		//  Poll rudder angel every milli second and filter angel
+		//  Poll rudder angel every milli second and filter
 		int newAngel = pollRudder(&rudderIs);
 		if(newAngel) {
-			printf("%f  %d  %f  ", rudderIs, mode, yawCmd);
+			//printf("%f  %d  %f  ", rudderIs, mode, yawCmd);
 			
 			gettimeofday(&t1, NULL);		// dt = time between iterations
 			double dt = elapsed(t1, t0);
 			t0 = t1;
-			printf("    %f \n ", dt);
+			//printf("    %f \n ", dt);
 		}
 		
 		//  Poll command knob
 		int newMode = pollKnob(&mode, &yawCmd, yawIs);
-		if(newMode) printf("%d  %f\n", mode, yawCmd);
+		//if(newMode) printf("%d  %f\n", mode, yawCmd);
+		
+		// Poll cmd
+		if(pollCmd() < 0) return -1;;
 				
 		//  Call PID regulator 10 times per second independent of mode.
 		//  That gives PID opportunity to follow compass in standby
@@ -150,8 +159,8 @@ int pollRudder(double *angel) {
 	//  Conversion to degrees, y angel in deg, x signal in volt. Straight line y=kx+m. degPerVolt = k. 
 	//  uZeroDeg = voltage at 0 deg => m = - k * uZeroDeg = - degPerVolt * uZeroDeg
 	//  *******************************************************************************************
-	static double degPerVolt = 81.8 ;
-	static double uZeroDeg = 1.30;
+	static double degPerVolt = 47.0 ;
+	static double uZeroDeg = 1.80;
 	
 	// Check DRDY#
 	if (digitalRead(6) == 0) {
@@ -180,8 +189,8 @@ int pollRudder(double *angel) {
 void actuateRudder(double rudderSet, double rudderIs) {
 	double rudderMax = 20.0;
 	double rudderMin = -20.0;
-	double db = 0.035;		//  Dead band
-	double slow = 0.14;		// Slow speed interval
+	double db = 0.035;		//  Dead band (deg)
+	double slow = 0.14;		// Slow speed interval (deg)
 	double pFast = 800;		// Max 1024
 	double pSlow = 200;
 	
@@ -217,12 +226,17 @@ void actuateRudder(double rudderSet, double rudderIs) {
 
 void initKnob(void) {
 
-	pinMode(0, INPUT);
+	pinMode(0, INPUT);		// Knob
 	pinMode(2, INPUT);
 	pinMode(3, INPUT);
 	pullUpDnControl(0, PUD_UP);
 	pullUpDnControl(2, PUD_UP);
 	pullUpDnControl(3, PUD_UP);
+	
+	pinMode(5, OUTPUT);	// LED
+	pinMode(27, OUTPUT);
+	digitalWrite(5, LOW);
+	digitalWrite(27, LOW);
 
 }
 
@@ -267,6 +281,38 @@ int pollKnob(int *mode, double *yawCmd, double yawIs) {
 }
 
 
+void initCmd(void) {
+
+	initscr();
+	WINDOW *wp = initscr();
+	cbreak();
+	nodelay(wp, TRUE);
+	nodelay(stdscr, TRUE);
+}
+
+
+int pollCmd(void) {
+
+	static char *buf[100];
+	
+	int cht;
+	if((cht = getch()) == ERR) {
+		// Do nothing
+		return 0;
+	}
+	else {
+		inputc = cht;
+		if(cht == '\n') {
+			// Evaluate line
+		}
+		else {
+			endwin();
+			return -1;;
+		}			
+	}
+}
+
+
 double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	
 	// Reference model for setpoint limitation.(Fossen chapter 10.2.1)
@@ -289,7 +335,7 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	if(ad >=   admax) ad =   admax;	//  Accelration saturation
 	if(ad <= - admax) ad = - admax;
 	
-	printf("\n%f %f %f\n", psid/3.14*180, rd, ad);
+	printf("\r\n%d  %d   %f %f %f\r\n", mode, inputc, psid/3.14*180, rd, ad);
 	
 	
 	//  PID-regulator with accelration feedback (Fossen capter 12.2.6

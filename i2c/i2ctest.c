@@ -66,7 +66,7 @@ int main() {
 	int hit7 = 0;
 	int hit10 = 0;
 	gettimeofday(&tStart, NULL);
-	while(count < 20000000) {	
+	while(count < 200000) {	
 		count++;	
 		
 		gettimeofday(&t0, NULL);	
@@ -96,12 +96,14 @@ int main() {
 			if(dt > 10.0) hit10++;
 			
 			gettimeofday(&t0, NULL);
-/*		 
+	 
 			cavallo = updateCavallo(ax, -ay, -az, gx*M_PI/180, -gy*M_PI/180,	// to radians
 					 -gz*M_PI/180, -mx, my, mz, dt / 1000.0);		// align magnetometer
-*/
+/*	
 			cavallo = updateCavallo(ax, -ay, -az, gx*M_PI/180, -gy*M_PI/180,	// to radians
 					 -gz*M_PI/180, my, -mx, mz, dt / 1000.0);		// align magnetometer
+*/
+					 
 			gettimeofday(&t1, NULL);
 			dAG = elapsed(t1, t0);
 			//printf("tk = %f", dAG);

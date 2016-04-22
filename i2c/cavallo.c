@@ -264,7 +264,7 @@ struct filter updateCavallo(double ax, double ay, double az,
 	//  Measurement residual
 	//  y = z - h(x)
 	gsl_vector_sub (z, h);	// ATTENTION! the result is stored in z and overwrites measurements, 
-							// but z is not used any more in this iteration
+								// but z is not used any more in this iteration
 	gsl_vector_memcpy (y, z);
 												
 	//  Populate H Jacobian	

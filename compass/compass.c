@@ -86,7 +86,18 @@ int main() {
 
 			double deltaT = (double)((micros() - lastT) / 1000000.0);
 			lastT = micros();
+			
+			/* This works		 
+			cavallo = updateCavallo(ax, -ay, -az, gx*M_PI/180, -gy*M_PI/180,	// to radians
+					 -gz*M_PI/180, -mx, my, mz, deltaT);		// align magnetometer
+
+			madgwick = updateMadgwick(ax, ay, az, gx*M_PI/180, gy*M_PI/180,	// to radians
+					 gz*M_PI/180, my, mx, -mz, deltaT);		// align magnetometer
 					 
+			 watson = updateWatson(ax, ay, az, gx*M_PI/180, gy*M_PI/180,	// to radians
+					 gz*M_PI/180, my, mx, -mz, deltaT);		// align magnetometer
+			*/
+			
 			cavallo = updateCavallo(ax, -ay, -az, gx*M_PI/180, -gy*M_PI/180,	// to radians
 					 -gz*M_PI/180, -mx, my, mz, deltaT);		// align magnetometer
 
