@@ -20,13 +20,12 @@ void initRudder(void);
 int pollRudder(double *angel);
 void actuateRudder(double rudderSet, double rudderIs);
 void initKnob(void);
-int pollKnob(int *mode, double *yawCmd, double yawIs);
+int pollKnob(int *mode, double *knobIncDec);
 void initCmd(void);
-int pollCmd(double *cmdIncDec);
+int pollCmd(int *mode, double *cmdIncDec);
 double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot);
 
 // Globals
-char inputc = NULL;
 
 	
 int main() {
@@ -37,15 +36,20 @@ int main() {
 	int mode = 0;
 	double yawCmd = 0;
 	double yawIs = 0;
+	double rudderSet = 0;
 	double w = 0;
 	double wDot = 0;
 	double cmdIncDec = 0;
+	double knobIncDec = 0;
+	int redLed = 27;
+	int greenLed = 5;
 	
 	wiringPiSetup();	
 	initRudder();
 	initKnob();
 	initCmd();
 	
+	// mode = 0 startup, = 1 standby, = 2 heading hold, = 7 rudder control
 	mode = 1;
 	gettimeofday(&tRud0, NULL);
 	gettimeofday(&tReg0, NULL);
@@ -56,39 +60,86 @@ int main() {
 		
 		//  Poll rudder angel every milli second and filter
 		int newAngel = pollRudder(&rudderIs);
-		if(newAngel) {
-			//printf("%f  %d  %f  ", rudderIs, mode, yawCmd);
-			
+		if(newAngel) {			
 			gettimeofday(&t1, NULL);		// dt = time between iterations
 			double dt = elapsed(t1, t0);
+			dt = dt;		// Scilence compiler warnings
 			t0 = t1;
-			//printf("    %f \n ", dt);
 		}
 		
 		//  Poll command knob
-		int newMode = pollKnob(&mode, &yawCmd, yawIs);
-		//if(newMode) printf("%d  %f\n", mode, yawCmd);
+		int newMode = pollKnob(&mode, &knobIncDec);
+		newMode = newMode;		// Just to scilence compiler warnings
 		
 		// Poll cmd
-		if(pollCmd(&cmdIncDec) < 0) return -1;
-		yawCmd += cmdIncDec * 2;
-		cmdIncDec = 0;
+		if(pollCmd(&mode, &cmdIncDec) < 0) return -1;
+		
+		// Chose source for PID-regulator input
+		switch (mode) {
+			case 0:
+				break;	
+			case 1:
+				yawCmd = yawIs;
+				break;	
+			case 2:
+				if(knobIncDec != 0) {
+					yawCmd += knobIncDec;
+					knobIncDec = 0;
+				}
+				if(cmdIncDec != 0) {
+					yawCmd += cmdIncDec;
+					cmdIncDec = 0;
+				}
+				break;	
+			case 7:
+				yawCmd = yawIs;
+				break;	
+		}				
 				
 		//  Call PID regulator 10 times per second independent of mode.
 		//  That gives PID opportunity to follow compass in standby
-		double rudderSet;
+		double rudderPID = 0;
 		gettimeofday(&tReg1, NULL);
 		if(elapsed(tReg1, tReg0) > 10.0) {
 			tReg0 = tReg1;
-			rudderSet = PIDAreg(mode, yawCmd, yawIs, w, wDot);
+			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot);
+			
+			if(mode == 0) { digitalWrite(greenLed, LOW); digitalWrite(redLed, LOW);}	//Light up the Led's
+			if(mode == 1) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, LOW);}
+			if(mode == 2) { digitalWrite(greenLed, LOW); digitalWrite(redLed, HIGH);}
+			if(mode == 7) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, HIGH);}
+			
+			printf("\r\n%d   %f   %f %f %f\r\n", mode ,yawCmd, yawIs, rudderSet, rudderIs);
 		}
 		
+		// Chose source for rudder actuator input
+		switch (mode) {
+			case 0:
+				break;	
+			case 1:
+				rudderSet = rudderIs;
+				break;	
+			case 2:
+				rudderSet = rudderPID;
+				break;					
+			case 7:
+				if(knobIncDec != 0) {
+					rudderSet += knobIncDec;
+					knobIncDec = 0;
+				}
+				if(cmdIncDec != 0) {
+					rudderSet += cmdIncDec;
+					cmdIncDec = 0;
+				}
+				break;	
+		}
+			
 		//  Call rudder actuator 100 times per second if mode == 2
 		if(mode == 2) {
 			gettimeofday(&tRud1, NULL);
 			if(elapsed(tRud1, tRud0) > 10.0) {
 				tRud0 = tRud1;
-				actuateRudder(yawCmd, rudderIs);		//  ATTENTION change yawCmd to rudderSet to connect regulator
+				actuateRudder(rudderSet, rudderIs);		//  ATTENTION change yawCmd to rudderSet to connect regulator
 			}
 		}
 	}
@@ -244,7 +295,7 @@ void initKnob(void) {
 }
 
 
-int pollKnob(int *mode, double *yawCmd, double yawIs) {
+int pollKnob(int *mode, double *knobIncDec) {
 	
 	static int clk0 = 1;
 	static int clk1 = 1;
@@ -269,14 +320,17 @@ int pollKnob(int *mode, double *yawCmd, double yawIs) {
 	}
 	clk0 = clk1;
 	
-	// Let setpoint yawCmd follow yawIs if autopilot not active
-	if(*mode == 2) {
-		*yawCmd += upDown * degPerClick;
-	} else *yawCmd = yawIs;
+	//Calculate Increment/Decrement
+	if((*mode == 2) || (*mode == 7)) {
+		*knobIncDec += upDown * degPerClick;
+	} 
 	
 	if(sw == 0) swCount--; else 	swCount = swStart;	
 	if(swCount == 0) {
-		if(*mode == 1) *mode = 2; else *mode = 1;		// Toggle mode
+	
+		if(*mode == 1) *mode = 2; 	
+		else					
+		if((*mode == 2) || (*mode == 7)) *mode = 1;	// Toggle mode
 		return 1;
 	}
 	
@@ -291,29 +345,49 @@ void initCmd(void) {
 	cbreak();
 	//nodelay(wp, TRUE);
 	nodelay(stdscr, TRUE);
+	keypad(stdscr, TRUE);
 }
 
 
-int pollCmd(double *cmdIncDec) {
+int pollCmd(int *mode, double *cmdIncDec) {
 	double gain = 0.5;	// Gearing deg per click
 	
 	int cht;
-	if((cht = getch()) == ERR) {		// I don't really understand this, but testing for ERR works here
-										// but testing for KEY_RIGHT in the switch-statement further down doesn't work
+	if((cht = getch()) == ERR) {		
+										
 		// Do nothing
 		return 0;
 	}
 	else {
-		inputc = cht;
-
 		switch (cht) {	
-			case 67:		// Increment, testing for 67 instead of KEY_RIGHT works, but be aware that these values 			
-				*cmdIncDec += gain;	// also represends capital letters in the beginning of the alphabeth
+			case KEY_RIGHT:	// Increment					
+				*cmdIncDec += gain;	
 				return 1;	
-			case 68:		// Decrement
+			case KEY_LEFT:		// Decrement
 				*cmdIncDec += -gain;
+				return 1;
+			case KEY_UP:		// Increment 5				
+				*cmdIncDec += gain * 5;	
 				return 1;	
+			case KEY_DOWN:	// Decrement 5
+				*cmdIncDec += -gain * 5;
+				return 1;
+			case 'q':		// quit
+				endwin();
+				digitalWrite(5, LOW);
+				digitalWrite(27, LOW);
+				return -1;	
+			case 'r':		// rudder control
+				*mode = 7;
+				return  1;	
+			case 's':		// standby  
+				*mode = 1;
+				return  1;	
+			case 'h':		// heading hold 
+				*mode = 2;
+				return  1;					
 		}
+		return -1;
 	}
 }
 
@@ -339,9 +413,7 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	ad = -dt*(2*xsi+1)*ws*ad -dt*(2*xsi+1)*ws*ws*rd -dt*ws*ws*ws*(psid-yawCmd*3.14/180) +ad;
 	if(ad >=   admax) ad =   admax;	//  Accelration saturation
 	if(ad <= - admax) ad = - admax;
-	
-	printf("\r\n%d  %d   %f   %f %f %f\r\n", mode, inputc, yawCmd, psid/3.14*180, rd, ad);
-	
+		
 	
 	//  PID-regulator with accelration feedback (Fossen capter 12.2.6
 	//  Formulas 12.154 and 12.155 and differentiated filtered accelration 12.153)
