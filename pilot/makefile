@@ -1,3 +1,3 @@
 
 all:
-	gcc -Wall -o pi pilot.c  -lwiringPi -lm -lncurses
+	gcc -Wall -o pi pilot.c  -lwiringPi -lm -lncurses -lpthread

@@ -12,6 +12,7 @@
 #include <wiringPiSPI.h>
 #include <linux/spi/spidev.h>
 #include<ncurses.h>
+#include<pthread.h>
 
 
 // Function prototypes, code at the end
@@ -24,12 +25,16 @@ int pollKnob(int *mode, double *knobIncDec);
 void initCmd(void);
 int pollCmd(int *mode, double *cmdIncDec);
 double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot);
+void *th2func();
 
 // Globals
-
+int counter = 0;
+pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
 	
 int main() {
-
+	
+	int rc1;
+	pthread_t th2;
 	double rudderIs = 0;
 	struct timeval t0, t1, tRud0, tRud1;
 	struct timeval tReg0, tReg1;
@@ -48,6 +53,8 @@ int main() {
 	initRudder();
 	initKnob();
 	initCmd();
+	
+	if((rc1 = pthread_create(&th2, NULL, &th2func, NULL))) printf("No thread created\\n");
 	
 	// mode = 0 startup, = 1 standby, = 2 heading hold, = 7 rudder control
 	mode = 1;
@@ -100,7 +107,7 @@ int main() {
 		//  That gives PID opportunity to follow compass in standby
 		double rudderPID = 0;
 		gettimeofday(&tReg1, NULL);
-		if(elapsed(tReg1, tReg0) > 10.0) {
+		if(elapsed(tReg1, tReg0) > 100.0) {
 			tReg0 = tReg1;
 			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot);
 			
@@ -109,7 +116,10 @@ int main() {
 			if(mode == 2) { digitalWrite(greenLed, LOW); digitalWrite(redLed, HIGH);}
 			if(mode == 7) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, HIGH);}
 			
-			printf("\r\n%d   %f   %f %f %f\r\n", mode ,yawCmd, yawIs, rudderSet, rudderIs);
+			pthread_mutex_lock(&mutex1);
+				printf("\r\n%d   %f   %f %f %f       %d\r\n", mode ,yawCmd, yawIs, rudderSet, rudderIs, counter);
+			pthread_mutex_unlock(&mutex1);
+			
 		}
 		
 		// Chose source for rudder actuator input
@@ -135,12 +145,16 @@ int main() {
 		}
 			
 		//  Call rudder actuator 100 times per second if mode == 2
-		if(mode == 2) {
+		if((mode == 2) || (mode == 7)) {
 			gettimeofday(&tRud1, NULL);
 			if(elapsed(tRud1, tRud0) > 10.0) {
 				tRud0 = tRud1;
 				actuateRudder(rudderSet, rudderIs);		//  ATTENTION change yawCmd to rudderSet to connect regulator
 			}
+		} else {
+			digitalWrite(25, LOW);		// Stop all rudder activity
+			pwmWrite(1, 0);
+			pwmWrite(24, 0);	
 		}
 	}
 
@@ -213,8 +227,8 @@ int pollRudder(double *angel) {
 	//  Conversion to degrees, y angel in deg, x signal in volt. Straight line y=kx+m. degPerVolt = k. 
 	//  uZeroDeg = voltage at 0 deg => m = - k * uZeroDeg = - degPerVolt * uZeroDeg
 	//  *******************************************************************************************
-	static double degPerVolt = 47.0 ;
-	static double uZeroDeg = 1.80;
+	static double degPerVolt = 51.1 ;
+	static double uZeroDeg = 1.52;
 	
 	// Check DRDY#
 	if (digitalRead(6) == 0) {
@@ -245,8 +259,8 @@ void actuateRudder(double rudderSet, double rudderIs) {
 	double rudderMin = -20.0;
 	double db = 0.035;		//  Dead band (deg)
 	double slow = 0.14;		// Slow speed interval (deg)
-	double pFast = 800;		// Max 1024
-	double pSlow = 200;
+	double pFast = 200;		// Max 1024
+	double pSlow = 100;
 	
 	if(rudderIs < rudderMin) return;
 	if(rudderIs > rudderMax) return;
@@ -387,7 +401,7 @@ int pollCmd(int *mode, double *cmdIncDec) {
 				*mode = 2;
 				return  1;					
 		}
-		return -1;
+		return 1;
 	}
 }
 
@@ -454,4 +468,16 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	double rudderMoment = tauFF - Kp * psiTilde - Kd * rTilde -Ki * integralPsiTilde -Km * wDot;
 	
 	return rudderMoment / 3.14 * 180;
+}
+
+
+void *th2func() {
+	for(;;) {
+		//printf("HEJSAN\r\n");
+		pthread_mutex_lock(&mutex1);
+			counter++;
+		pthread_mutex_unlock(&mutex1);
+		sleep(1);
+	}
+	return 0;
 }
