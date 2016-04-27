@@ -257,8 +257,8 @@ int pollRudder(double *angel) {
 void actuateRudder(double rudderSet, double rudderIs) {
 	double rudderMax = 20.0;
 	double rudderMin = -20.0;
-	double db = 0.035;		//  Dead band (deg)
-	double slow = 0.14;		// Slow speed interval (deg)
+	double db = 0.5;		//  Dead band (deg)
+	double slow = 1.0;		// Slow speed interval (deg)
 	double pFast = 200;		// Max 1024
 	double pSlow = 100;
 	
@@ -273,12 +273,12 @@ void actuateRudder(double rudderSet, double rudderIs) {
 	if((db < dr) && (dr < slow)) out = pSlow;
 	if( dr > slow) out = pFast;
 	
-	if(out > 0) {
+	if(out < 0) {
 		digitalWrite(25, HIGH);
 		pwmWrite(1, 0);
 		pwmWrite(24, out);
 	}
-	if(out < 0) {
+	if(out > 0) {
 		digitalWrite(25, HIGH);	
 		pwmWrite(24, 0);
 		pwmWrite(1, -out);
