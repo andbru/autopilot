@@ -1,4 +1,4 @@
- 
+
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -117,7 +117,7 @@ int main() {
 			if(mode == 7) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, HIGH);}
 			
 			pthread_mutex_lock(&mutex1);
-				printf("\r\n%d   %f   %f %f %f       %d\r\n", mode ,yawCmd, yawIs, rudderSet, rudderIs, counter);
+		//		printf("\r\n%d   %f   %f %f %f       %d\r\n", mode ,yawCmd, yawIs, rudderSet, rudderIs, counter);
 			pthread_mutex_unlock(&mutex1);
 			
 		}
@@ -227,8 +227,8 @@ int pollRudder(double *angel) {
 	//  Conversion to degrees, y angel in deg, x signal in volt. Straight line y=kx+m. degPerVolt = k. 
 	//  uZeroDeg = voltage at 0 deg => m = - k * uZeroDeg = - degPerVolt * uZeroDeg
 	//  *******************************************************************************************
-	static double degPerVolt = 51.1 ;
-	static double uZeroDeg = 1.52;
+	static double degPerVolt = 36.49 ;
+	static double uZeroDeg = 1.596;
 	
 	// Check DRDY#
 	if (digitalRead(6) == 0) {
@@ -272,19 +272,42 @@ void actuateRudder(double rudderSet, double rudderIs) {
 	if((-db < dr) && (dr < db)) out = 0;
 	if((db < dr) && (dr < slow)) out = pSlow;
 	if( dr > slow) out = pFast;
+
+	static int rc = 0;
+	if(rc <= 500) out = 0;
+	if(rc > 500) out = 400;
+	if(rc > 550) out = 0;
+	if(rc > 1000) out = -400;
+	if(rc > 1050) out = 0;
+	if(rc > 1500) out = 200;
+	if(rc > 1600) out = 0;
+	if(rc > 2000) out = -200;
+	if(rc > 2100) out = 0;
+	if(rc > 2500) out = 100;
+	if(rc > 2600) out = 0;
+	if(rc > 3000) out = -50;
+	if(rc > 3100) out = 0;
+	if(rc > 3500) out = -10;
+	if(rc > 3600) out = 0;
+	if(rc > 4000) out = -5;
+	if(rc > 4100) out = 0;
 	
-	if(out < 0) {
-		digitalWrite(25, HIGH);
-		pwmWrite(1, 0);
-		pwmWrite(24, out);
-	}
+	rc++;
+	
+	printf("%d  %f\r\n", out, rudderIs);
+	
 	if(out > 0) {
-		digitalWrite(25, HIGH);	
+		digitalWrite(25, HIGH);
 		pwmWrite(24, 0);
-		pwmWrite(1, -out);
+		pwmWrite(1, out);
+	}
+	if(out < 0) {
+		digitalWrite(25, HIGH);	
+		pwmWrite(1, 0);
+		pwmWrite(24, -out);
 	}
 	if(out == 0) {
-		digitalWrite(25, LOW);
+		digitalWrite(25, HIGH);
 		pwmWrite(1, 0);
 		pwmWrite(24, 0);	
 	}
