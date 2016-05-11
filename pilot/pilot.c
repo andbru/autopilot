@@ -14,6 +14,8 @@
 #include<ncurses.h>
 #include<pthread.h>
 
+#define SIZE 256
+
 
 // Function prototypes, code at the end
 double elapsed(struct timeval t1, struct timeval t0);
@@ -30,11 +32,17 @@ void *th2func();
 // Globals
 int counter = 0;
 pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
+
 	
 int main() {
 	
 	int rc1;
 	pthread_t th2;
+
+	char fname[SIZE];
+	time_t curtime;
+	struct tm *loctime;
+
 	double rudderIs = 0;
 	struct timeval t0, t1, tRud0, tRud1;
 	struct timeval tReg0, tReg1;
@@ -48,18 +56,29 @@ int main() {
 	double knobIncDec = 0;
 	int redLed = 27;
 	int greenLed = 5;
+
+	wiringPiSetup();
+
+	// Open log file with date and time as filename
+	curtime = time(NULL);
+	loctime = localtime(&curtime);
+	strftime(fname, SIZE, "/home/andbru/autopilot/logs/%F_%T", loctime);
+	printf("Logfile = %s\r\n", fname);
+	FILE *fp;
+	fp  = fopen(fname, "w");
+
 	
-	wiringPiSetup();	
 	initRudder();
 	initKnob();
 	initCmd();
 	
-	if((rc1 = pthread_create(&th2, NULL, &th2func, NULL))) printf("No thread created\\n");
+	if((rc1 = pthread_create(&th2, NULL, &th2func, NULL))) printf("No thread created\n");
 	
 	// mode = 0 startup, = 1 standby, = 2 heading hold, = 7 rudder control
 	mode = 1;
 	gettimeofday(&tRud0, NULL);
 	gettimeofday(&tReg0, NULL);
+
 
 	
 	// Endless main loop
@@ -79,7 +98,10 @@ int main() {
 		newMode = newMode;		// Just to scilence compiler warnings
 		
 		// Poll cmd
-		if(pollCmd(&mode, &cmdIncDec) < 0) return -1;
+		if(pollCmd(&mode, &cmdIncDec) < 0) {
+			fclose(fp);
+			return -1;
+		}
 		
 		// Chose source for PID-regulator input
 		switch (mode) {
@@ -117,7 +139,7 @@ int main() {
 			if(mode == 7) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, HIGH);}
 			
 			pthread_mutex_lock(&mutex1);
-		//		printf("\r\n%d   %f   %f %f %f       %d\r\n", mode ,yawCmd, yawIs, rudderSet, rudderIs, counter);
+				fprintf(fp, "\r\n%d   %f   %f %f %f       %d\r\n", mode ,yawCmd, yawIs, rudderSet, rudderIs, counter);
 			pthread_mutex_unlock(&mutex1);
 			
 		}
