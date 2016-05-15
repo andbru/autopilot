@@ -14,6 +14,8 @@
 #include<ncurses.h>
 #include<pthread.h>
 
+#define SIZE 256
+
 
 // Function prototypes, code at the end
 double elapsed(struct timeval t1, struct timeval t0);
@@ -35,6 +37,11 @@ int main() {
 	
 	int rc1;
 	pthread_t th2;
+	
+	char fname[SIZE];
+	time_t curtime;
+	struct tm *loctime;
+	
 	double rudderIs = 0;
 	struct timeval t0, t1, tRud0, tRud1;
 	struct timeval tReg0, tReg1;
@@ -49,7 +56,16 @@ int main() {
 	int redLed = 27;
 	int greenLed = 5;
 	
-	wiringPiSetup();	
+	wiringPiSetup();
+
+	// Open log file with date and time as filename
+	curtime = time(NULL);
+	loctime = localtime(&curtime);
+	strftime(fname, SIZE, "/home/andbru/autopilot/logs/%F_%T", loctime);
+	printf("Logfile = %s\r\n", fname);
+	FILE *fp;
+	fp  = fopen(fname, "w");
+	
 	initRudder();
 	initKnob();
 	initCmd();
@@ -79,7 +95,10 @@ int main() {
 		newMode = newMode;		// Just to scilence compiler warnings
 		
 		// Poll cmd
-		if(pollCmd(&mode, &cmdIncDec) < 0) return -1;
+		if(pollCmd(&mode, &cmdIncDec) < 0) {
+			fclose(fp);
+			return -1;
+		}
 		
 		// Chose source for PID-regulator input
 		switch (mode) {
@@ -117,7 +136,7 @@ int main() {
 			if(mode == 7) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, HIGH);}
 			
 			pthread_mutex_lock(&mutex1);
-		//		printf("\r\n%d   %f   %f %f %f       %d\r\n", mode ,yawCmd, yawIs, rudderSet, rudderIs, counter);
+				fprintf(fp, "%d   %f   %f %f %f       %d\n", mode ,yawCmd, yawIs, rudderSet, rudderIs, counter);
 			pthread_mutex_unlock(&mutex1);
 			
 		}
