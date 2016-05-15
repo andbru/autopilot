@@ -30,8 +30,9 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot);
 void *th2func();
 
 // Globals
-int counter = 0;
-pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
+int counter = 0;		// Global counter for test of thread handling
+pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;	// Global semafor for thread safty
+FILE *fp;		//Global filehandle to make it possible to log in all routines
 	
 int main() {
 	
@@ -63,7 +64,6 @@ int main() {
 	loctime = localtime(&curtime);
 	strftime(fname, SIZE, "/home/andbru/autopilot/logs/%F_%T", loctime);
 	printf("Logfile = %s\r\n", fname);
-	FILE *fp;
 	fp  = fopen(fname, "w");
 	
 	initRudder();
@@ -136,7 +136,7 @@ int main() {
 			if(mode == 7) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, HIGH);}
 			
 			pthread_mutex_lock(&mutex1);
-				fprintf(fp, "%d   %f   %f %f %f       %d\n", mode ,yawCmd, yawIs, rudderSet, rudderIs, counter);
+				//fprintf(fp, "%d   %f   %f %f %f       %d\n", mode ,yawCmd, yawIs, rudderSet, rudderIs, counter);
 			pthread_mutex_unlock(&mutex1);
 			
 		}
@@ -163,12 +163,12 @@ int main() {
 				break;	
 		}
 			
-		//  Call rudder actuator 100 times per second if mode == 2
+		//  Call rudder actuator 100 times per second if mode == 2 or 7
 		if((mode == 2) || (mode == 7)) {
 			gettimeofday(&tRud1, NULL);
 			if(elapsed(tRud1, tRud0) > 10.0) {
 				tRud0 = tRud1;
-				actuateRudder(rudderSet, rudderIs);		//  ATTENTION change yawCmd to rudderSet to connect regulator
+				actuateRudder(rudderSet, rudderIs);		
 			}
 		} else {
 			digitalWrite(25, LOW);		// Stop all rudder activity
@@ -335,6 +335,10 @@ void actuateRudder(double rudderSet, double rudderIs) {
 		pwmWrite(1, 0);
 		pwmWrite(24, 0);	
 	}
+	
+	pthread_mutex_lock(&mutex1);
+		fprintf(fp, "%f  %f  %d\n", rudderSet, rudderIs, out);
+	pthread_mutex_unlock(&mutex1);
 	
 	return;
 }
