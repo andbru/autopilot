@@ -276,7 +276,8 @@ int pollRudder(double *angel) {
 void actuateRudder(double rudderSet, double rudderIs) {
 	double rudderMax = 10.0;
 	double rudderMin = -10.0;
-	double db = 0.5;		//  Dead band (deg)
+	// Constants for Florin algorithm
+	double db = 0.5;			// Dead band (deg)
 	double slow = 1.0;		// Slow speed interval (deg)
 	double pFast = 400;		// Max 1024
 	double pSlow = 200;
@@ -286,14 +287,16 @@ void actuateRudder(double rudderSet, double rudderIs) {
 	
 	int out = 0;
 	double dr = rudderSet - rudderIs;
+		
 	if(dr < -slow) out = - pFast;
 	if((-slow < dr) && (dr < -db)) out = - pSlow;
 	if((-db < dr) && (dr < db)) out = 0;
 	if((db < dr) && (dr < slow)) out = pSlow;
 	if( dr > slow) out = pFast;
 
-	static int rc = 0;
 /*
+	static int rc = 0;
+
 	if(rc <= 200) out = 0;
 	if(rc > 200) out = 800;
 	if(rc > 250) out = 0;
@@ -315,8 +318,9 @@ void actuateRudder(double rudderSet, double rudderIs) {
 	if(rc > 3900) out = 0;
 	if(rc > 4000) out = -5;
 	if(rc > 4500) out = 0;
-*/	
+
 	rc++;
+*/	
 	
 	printf("%d  %f\r\n", out, rudderIs);
 	
