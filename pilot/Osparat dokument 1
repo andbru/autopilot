@@ -1,0 +1,16 @@
+
+int main(void) {
+
+	initGps();
+
+	double gpsCourse;
+	double gpsSpeed;
+	serialFlush(hGps);
+	for(;;) {
+		bool newGps = pollGps(&gpsCourse, &gpsSpeed);
+		if(newGps) printf("COG = %f   SOG = %f\n", gpsCourse, gpsSpeed);
+	}
+	
+	serialClose(hGps);
+	return 0;
+}

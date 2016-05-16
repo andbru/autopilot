@@ -1,41 +1,4 @@
 
-#include <stdio.h>
-#include<stdlib.h>
-#include <math.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include<string.h>
-#include<unistd.h>
-#include <time.h>
-#include <sys/time.h>
-#include<fcntl.h>
-#include<wiringPi.h>
-#include <wiringSerial.h>
-
-// Prototypes
-int initGps(void);
-bool pollGps( double *speed, double *course);
-bool nmeaOk( double *speed, double *course); 
-
-//Globals
-int hGps;
-char nmea[100] = "";
-
-int main(void) {
-
-	initGps();
-
-	double gpsCourse;
-	double gpsSpeed;
-	serialFlush(hGps);
-	for(;;) {
-		bool newGps = pollGps(&gpsCourse, &gpsSpeed);
-		if(newGps) printf("COG = %f   SOG = %f\n", gpsCourse, gpsSpeed);
-	}
-	
-	serialClose(hGps);
-	return 0;
-}
 
 int initGps() {
 	int handle = serialOpen("/dev/ttyAMA0", 9600);

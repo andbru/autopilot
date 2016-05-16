@@ -13,6 +13,15 @@
 #include <linux/spi/spidev.h>
 #include<ncurses.h>
 #include<pthread.h>
+#include<stdlib.h>
+#include<string.h>
+#include <wiringSerial.h>
+
+#include "global.h"
+#include "madgwick.h"
+#include "watson.h"
+#include "cavallo.h"
+
 
 #define SIZE 256
 
@@ -28,11 +37,21 @@ void initCmd(void);
 int pollCmd(int *mode, double *cmdIncDec);
 double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot);
 void *th2func();
+int initGps(void);
+bool pollGps( double *speed, double *course);
+bool nmeaOk( double *speed, double *course); 
 
 // Globals
 int counter = 0;		// Global counter for test of thread handling
 pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;	// Global semafor for thread safty
 FILE *fp;		//Global filehandle to make it possible to log in all routines
+struct taitBryanYPR madgwickG;	// Global for interthread communication
+struct taitBryanYPR watsonG;		// Global for interthread communication
+struct taitBryanYPR cavalloG;		// Global for interthread communication
+double gpsCourseG;					// Global for interthread communication
+double gpsSpeedG;					// Global for interthread communication
+int hGps;		// Handle to serial gps port
+char nmea[100] = "";	// Buffer for nmea-sentences
 	
 int main() {
 	
@@ -66,11 +85,15 @@ int main() {
 	printf("Logfile = %s\r\n", fname);
 	fp  = fopen(fname, "w");
 	
+	// Start the second thread with gyro compass	
+	if((rc1 = pthread_create(&th2, NULL, &th2func, NULL))) printf("No thread created\\n");
+	sleep(2);		// Wait for thread to initiate
+	
+	// Initiate hardware
 	initRudder();
 	initKnob();
+	initGps();
 	initCmd();
-	
-	if((rc1 = pthread_create(&th2, NULL, &th2func, NULL))) printf("No thread created\\n");
 	
 	// mode = 0 startup, = 1 standby, = 2 heading hold, = 7 rudder control
 	mode = 1;
@@ -99,6 +122,19 @@ int main() {
 			fclose(fp);
 			return -1;
 		}
+		
+		// Poll gps
+		double gpsCourse;
+		double gpsSpeed;
+		bool newGps = pollGps(&gpsCourse, &gpsSpeed);
+		if(newGps) {
+			//printf("COG = %f   SOG = %f\r\n", gpsCourse, gpsSpeed);
+			pthread_mutex_lock(&mutex1);		// Update global variables in a threadsafe way
+				gpsCourseG = gpsCourse;
+				gpsSpeedG = gpsSpeed;
+			pthread_mutex_unlock(&mutex1);
+		}
+		
 		
 		// Chose source for PID-regulator input
 		switch (mode) {
@@ -135,7 +171,7 @@ int main() {
 			if(mode == 2) { digitalWrite(greenLed, LOW); digitalWrite(redLed, HIGH);}
 			if(mode == 7) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, HIGH);}
 			
-			pthread_mutex_lock(&mutex1);
+			pthread_mutex_lock(&mutex1);		// Print global variables to logfile
 				//fprintf(fp, "%d   %f   %f %f %f       %d\n", mode ,yawCmd, yawIs, rudderSet, rudderIs, counter);
 			pthread_mutex_unlock(&mutex1);
 			
@@ -527,12 +563,340 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 
 
 void *th2func() {
+
+	struct taitBryanYPR madgwick;
+	struct taitBryanYPR watson;
+	struct taitBryanYPR cavallo;
+	
+	initMPU9250();
+	
+	int regValue;
+	int magCount = 0;
+	int accGyroCount = 0;
+	bool newData = false;
+	wiringPiI2CWriteReg8(magHandle, 0x0A, 0x11);		//  Initiate mag reading 16-bit output
+	start = micros();
+	lastT = start;
+	tAccGyro = micros();
+	tMag = micros();
+	
 	for(;;) {
-		//printf("HEJSAN\r\n");
+	
+		// Check for new AccGyro data
+		regValue = wiringPiI2CReadReg8(accGyroHandle, 58);
+		if(regValue & 0x01) {
+		//printf("%lu   %#x  ",  micros() - tAccGyro, ii);
+			tAccGyro = micros();
+			unsigned long t = micros();
+			accGyroRead();
+			t = t;		//  Avoid warning when print below is not used
+			//printf("%lu\n", micros() - t);
+			accGyroCount++;
+			newData = true;
+		}
+		
+		// Check for new Mag data
+		regValue = wiringPiI2CReadReg8(magHandle, 0x02);
+		if(regValue & 0x01) {
+		//printf("%lu              %lu  %#x   ",  micros() - tAccGyro, micros() - tMag, ii);
+			tMag = micros();
+			unsigned long t = micros();
+			magRead();
+			wiringPiI2CWriteReg8(magHandle, 0x0A, 0x11);		//  Initiate new mag reading
+			t = t;		//  Avoid warning when print below is not used			
+			//printf(" %lu\n", micros() - t);										//  16 bit output
+			magCount++;
+			newData = true;
+		}
+		
+		if(newData) {		// If either accgyro or mag has new data convert to physical units and call fusion routines
+			newData = false;
+			
+			axRaw = (axRead & 0x00FF) * 256 + (axRead >> 8);	// I2CReadReg16 swaps the bytes, swap back
+			ayRaw = (ayRead & 0x00FF) * 256 + (ayRead >> 8);	//  and convert to signed int
+			azRaw = (azRead & 0x00FF) * 256 + (azRead >> 8);
+			//printf("%d  %d  %d \n", axRaw, ayRaw, azRaw);
+			gxRaw = (gxRead & 0x00FF) * 256 + (gxRead >> 8);
+			gyRaw = (gyRead & 0x00FF) * 256 + (gyRead >> 8);
+			gzRaw = (gzRead & 0x00FF) * 256 + (gzRead >> 8);
+			//printf("%d  %d  %d \n", gxRaw, gyRaw, gzRaw);	
+			mxRaw = mxRead;						//  Magnetometer bytes are already swaped, just copy to signed int
+			myRaw = myRead;
+			mzRaw = mzRead;
+			//printf("%d  %d  %d \n", mxRaw, myRaw, mzRaw);
+			ax = (double)axRaw * aRes;
+			ay = (double)ayRaw * aRes;
+			az = (double)azRaw * aRes;
+			//printf("%f  %f  %f \n", ax, ay, az);
+			gx = (double)gxRaw * gRes;		//  All gyro measurements in deg per second
+			gy = (double)gyRaw * gRes;
+			gz = (double)gzRaw * gRes;
+			//printf("%f  %f  %f \n", gx, gy, gz);
+			mx = (double)mxRaw * mRes * magFactoryCal[0];	
+			my = (double)myRaw * mRes * magFactoryCal[1];
+			mz = (double)mzRaw * mRes * magFactoryCal[2];
+			//printf("%f  %f  %f \n", mx, my, mz);
+
+			double deltaT = (double)((micros() - lastT) / 1000000.0);
+			lastT = micros();
+			
+						/* This works		 
+			cavallo = updateCavallo(ax, -ay, -az, gx*M_PI/180, -gy*M_PI/180,	// to radians
+					 -gz*M_PI/180, -mx, my, mz, deltaT);		// align magnetometer
+
+			madgwick = updateMadgwick(ax, ay, az, gx*M_PI/180, gy*M_PI/180,	// to radians
+					 gz*M_PI/180, my, mx, -mz, deltaT);		// align magnetometer
+					 
+			 watson = updateWatson(ax, ay, az, gx*M_PI/180, gy*M_PI/180,	// to radians
+					 gz*M_PI/180, my, mx, -mz, deltaT);		// align magnetometer
+			*/
+			
+			cavallo = updateCavallo(ax, -ay, -az, gx*M_PI/180, -gy*M_PI/180,	// to radians
+					 -gz*M_PI/180, -mx, my, mz, deltaT);		// align magnetometer
+
+			madgwick = updateMadgwick(ax, ay, az, gx*M_PI/180, gy*M_PI/180,	// to radians
+					 gz*M_PI/180, my, mx, -mz, deltaT);		// align magnetometer
+					 
+			 watson = updateWatson(ax, ay, az, gx*M_PI/180, gy*M_PI/180,	// to radians
+					 gz*M_PI/180, my, mx, -mz, deltaT);		// align magnetometer
+		}
+		
+		// Transfer values to global variables thred safe
 		pthread_mutex_lock(&mutex1);
 			counter++;
+			cavalloG = cavallo;
+			madgwickG = madgwick;
+			watsonG = watson;
 		pthread_mutex_unlock(&mutex1);
-		sleep(1);
 	}
 	return 0;
+}
+
+
+void accGyroRead(void) {
+	axRead =wiringPiI2CReadReg16(accGyroHandle, 59);
+	ayRead =wiringPiI2CReadReg16(accGyroHandle, 61);
+	azRead =wiringPiI2CReadReg16(accGyroHandle, 63);
+	gxRead =wiringPiI2CReadReg16(accGyroHandle, 67);
+	gyRead =wiringPiI2CReadReg16(accGyroHandle, 69);
+	gzRead =wiringPiI2CReadReg16(accGyroHandle, 71);
+}
+
+void magRead(void) {
+	mxRead = wiringPiI2CReadReg16(magHandle, 0x03);
+	myRead = wiringPiI2CReadReg16(magHandle, 0x05);
+	mzRead = wiringPiI2CReadReg16(magHandle, 0x07);
+}
+
+void initMPU9250(void) {
+
+	printf("\n*******************   Start initMPU9250   *********************\n\n");
+	
+	accGyroHandle = wiringPiI2CSetup(104);								// First, init accGyro
+	printf("accGyroHandle = %d \n",  accGyroHandle);
+	
+	int i =wiringPiI2CReadReg8(accGyroHandle, 117);
+	printf("Who_am_I should be 0x71: %#x \n",  i);
+
+	i = wiringPiI2CWriteReg8(accGyroHandle, 0x6B, 0x00);		// PWR_MGMT_1 Clear sleep mode and enable all sensors
+	printf("PWR_MGMT_1   %#x Clear sleep mode, enable all sensors\n", i);
+	ts.tv_sec = 0;							//  Delay 100 ms
+	ts.tv_nsec = 100000000;
+	nanosleep(&ts, NULL);
+	
+	i = wiringPiI2CWriteReg8(accGyroHandle, 0x6B, 0x01);			// PWR_MGMT_1 PLL as clocksource if possible
+	printf("PWR_MGMT_1   %#x PLL as clocksource if possible\n", i);
+	ts.tv_sec = 0;							//  Delay 200 ms
+	ts.tv_nsec = 200000000;
+	nanosleep(&ts, NULL);
+	
+	//  Configure Gyro and Accelerometer, reg 0x1A, disable FSYNC, DLPF_CFG 2:0 = 010 = 0x2 gives delay
+	//  3.9 ms ~250 Hz reading frequency, 1kHz saple rate
+	i = wiringPiI2CWriteReg8(accGyroHandle, 0x1A, 0x02);	
+	printf("CONFIG       %#x ~250 Hz reading frequency\n", i);
+	i = wiringPiI2CWriteReg8(accGyroHandle, 0x19, 0x03);				//  SMPLRT_DIV 1 kHz / (1 + 3) => 0x03
+	printf("SMPLRT_DIV   %#x ~250 Hz reading frequency\n", i);
+	
+	uint8_t c = wiringPiI2CReadReg8(accGyroHandle, 0x1B);			//  GYRO_CONFIG, clear selftest, Full Scale 250 deg/s
+	i = wiringPiI2CWriteReg8(accGyroHandle, 0x1B, c & 0x04);
+	printf("GYRO_CONFIG  %#x clear selftest, Full Scale 250 deg/s\n", i);
+	gRes = 250 / 32768.0;
+	
+	c = wiringPiI2CReadReg8(accGyroHandle, 0x1C);						//  ACCEL_CONFIG, clear selftest, Full Scale 2g
+	i = wiringPiI2CWriteReg8(accGyroHandle, 0x1C, c & 0x07);
+	printf("ACCEL_CONFIG %#x clear selftest, Full Scale 2g\n", i);
+	aRes = 2 / 37268.0;
+
+	i = wiringPiI2CWriteReg8(accGyroHandle, 0x37, 0x22);			// INT_Pin, i2c bypass enable
+	printf("INT_Pin      %#x i2c bypass enable\n", i);
+
+	i = wiringPiI2CWriteReg8(accGyroHandle, 0x38, 0x01);			// INT_Pin, i2c interrupt enable
+	printf("INT_Pin      %#x INT_Pin, i2c interrupt enable\n\n", i);
+	
+	magHandle = wiringPiI2CSetup(0x0C);										// Second,init magnetometer
+	printf("magHandle = %d \n",  magHandle);
+	
+	i =wiringPiI2CReadReg8(magHandle, 0x00);
+	printf("Who_am_I should be 0x48: %#x \n",  i);
+	
+	i = wiringPiI2CWriteReg8(magHandle, 0x0A, 0x00);		// CNTL Power down
+	printf("CNTL   %#x Power down\n", i);
+	ts.tv_sec = 0;							//  Delay 10 ms
+	ts.tv_nsec = 10000000;
+	nanosleep(&ts, NULL);
+	
+	i = wiringPiI2CWriteReg8(magHandle, 0x0A, 0x0F);		// CNTL Enter fuse ROM access mode
+	printf("CNTL   %#x Enter fuse ROM access mode\n", i);
+	ts.tv_sec = 0;							//  Delay 10 ms
+	ts.tv_nsec = 10000000;
+	nanosleep(&ts, NULL);
+	
+	int xCal = wiringPiI2CReadReg8(magHandle, 0x10);			//  ASAX, sensitivity adjustment onstant
+	printf("ASAX   %#x Sensitivity adjustment onstant\n", xCal);
+	int yCal = wiringPiI2CReadReg8(magHandle, 0x11);			//  ASAY, sensitivity adjustment onstant
+	printf("ASAY   %#x Sensitivity adjustment onstant\n", yCal);
+	int zCal = wiringPiI2CReadReg8(magHandle, 0x12);			//  ASAZ, sensitivity adjustment onstant
+	printf("ASAZ   %#x Sensitivity adjustment onstant\n", zCal);
+	
+	magFactoryCal[0] = (xCal - 128) * 0.5 / 128 + 1;					//  Calculate adjustment factors
+	magFactoryCal[1] = (yCal - 128) * 0.5 / 128 + 1;					//  Calculate adjustment factors
+	magFactoryCal[2] = (zCal - 128) * 0.5 / 128 + 1;					//  Calculate adjustment factors
+	printf("Correction factor mag x: %f \n", magFactoryCal[0]);
+	printf("Correction factor mag y: %f \n", magFactoryCal[1]);
+	printf("Correction factor mag z: %f \n", magFactoryCal[2]);
+	
+	printf("\n*******************    End initMPU9250    *********************\n\n");
+	
+}
+
+
+int initGps() {
+	int handle = serialOpen("/dev/ttyAMA0", 9600);
+	if(handle<0) return -1;
+	else {
+	
+		hGps = handle;
+		serialFlush(hGps);
+		
+		serialPrintf(hGps, "\r\n");
+		//serialPrintf(hGps, "%s\r\n", "$PMTK104*37");		// Full Cold Start
+		//serialPrintf(hGps, "%s\r\n", "$PMTK414*33");		// Querry sentences to send
+		//serialPrintf(hGps, "%s\r\n", "$PMTK314,-1*04");	// Back to standard sentences
+		//serialPrintf(hGps, "%s\r\n", "$PMTK314,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29");
+		//serialPrintf(hGps, "%s\r\n\r\n", "$PMTK313,1*2E");		// EGNOS enable
+		//serialPrintf(hGps, "%s\r\n", "$PMTK501,2*28");		// EGNOS enable DGPS mode
+		serialPrintf(hGps, "%s\r\n", "$PMTK220,100*2F");
+		
+		printf("Init GPS ready!\n");
+		
+		return handle;
+	}
+}
+
+
+bool pollGps(double *course, double *speed) {
+	
+	char c;
+	int noChar = serialDataAvail(hGps);
+	if(noChar>=1) {
+
+	int gpsCount;
+		for(gpsCount=1; gpsCount<=noChar; gpsCount++) {
+			c = serialGetchar(hGps);	// Read character
+			//printf("%c", c);
+	
+			int len = strlen(nmea);
+			nmea[len] = c;					// Append to string
+			nmea[len+1] = '\0';				//  Add NULL terminator
+
+			if(c == '\n') {						// If end of line
+		
+				// Action for new line
+				bool dataOk = nmeaOk(course, speed);	
+				nmea[0] = '\0';				// Reset buffer to zero
+				if(dataOk) return true;
+			}
+		}
+	}	
+	return false;
+}
+
+
+bool nmeaOk( double *course, double *speed) {
+
+	int lenNmea = strlen(nmea);
+	unsigned int chSum = 0;					// Calculate checksum before corrupting string
+	int iSum = 0;
+	for(iSum = 1; iSum < lenNmea - 5; iSum++) {
+		chSum = chSum ^ nmea[iSum];
+	}
+	
+	//printf("%s\r\n", nmea);
+	
+	const char s[2] = ",";
+	char *param;
+	param = strtok(nmea, s);					// Find first parameter
+	
+	if(strcmp(param, "") == 0) return false;	// Empty string
+	if(strcmp(param, "$GPVTG") == 0) {		// Ceck for "Track made good and speed
+		
+		param = strtok(NULL, s);				// Find second parameter, true course
+		float fCourse;
+		int i = sscanf(param, "%f", &fCourse);	// Cast to float
+		if(i != 1) return false;						// Cast failed
+		*course = fCourse;						// Cast to double
+		
+		param = strtok(NULL, s);				// Find third parameter, "T" as in true
+		if(strcmp(param, "T") == 0) {
+			
+			// Field #4 for magnetic course empty and not recognized
+
+			param = strtok(NULL, s);			// Check for "M" in field #5
+			if(strcmp(param, "M") == 0) {
+			
+				param = strtok(NULL, s);				// Field #6, speed SOG
+				float fSpeed;
+				int i = sscanf(param, "%f", &fSpeed);	// Cast to float
+				if(i != 1) return false;						// Cast failed
+				*speed = fSpeed;							// Cast to double
+			
+				param = strtok(NULL, s);			// Check for "N" in field #7
+				if(strcmp(param, "N") == 0) {
+				
+					param = strtok(NULL, s);		// Skip field #8, speed in km/h
+					param = strtok(NULL, s);		// Check for "K" in field #9
+					if(strcmp(param, "K") == 0) {
+					
+						param = strtok(NULL, s);		// Read last four characters
+						
+						char str1[2];						// Check for A = gpsFix
+						str1[0] = param[0];
+						str1[1] = '\0';
+						char str2[2] = "A";
+						if(strcmp(str1, str2) != 0) return false;														
+											
+						str1[0] = param[1];				// Check for * before checksum
+						str1[1] = '\0';
+						str2[0] = '*';
+						str2[1] = '\0';
+						if(strcmp(str1, str2) != 0) return false;
+						
+						char sumStr[3];					// Check check sum vs
+						sumStr[0] = param[2];			// calculated sum first in this function
+						sumStr[1] = param[3];
+						sumStr[2] = '\0';
+						int readSumDec = 0;
+						sscanf(sumStr, "%x", &readSumDec);
+						if(readSumDec != chSum) return false;
+
+						param = strtok(NULL, s);		// Check that there are no more fields
+						if(param == NULL) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+	}
+	return false;
 }
