@@ -164,16 +164,21 @@ int main() {
 		gettimeofday(&tReg1, NULL);
 		if(elapsed(tReg1, tReg0) > 100.0) {
 			tReg0 = tReg1;
+			
+			//  Get global data for regulator input and rint to logfile
+			pthread_mutex_lock(&mutex1);		// Print global variables to logfile
+				fprintf(fp, "%d  %f  %f  %f  %f  %f  %f  %f\n", mode , rudderSet, rudderIs, cavalloG.yaw, cavalloG.roll, madgwickG.yaw, gpsCourse, gpsSpeed);
+			pthread_mutex_unlock(&mutex1);
+			
 			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot);
+			
+			//  Finalize the line in logfile wit rudderPID
+			
 			
 			if(mode == 0) { digitalWrite(greenLed, LOW); digitalWrite(redLed, LOW);}	//Light up the Led's
 			if(mode == 1) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, LOW);}
 			if(mode == 2) { digitalWrite(greenLed, LOW); digitalWrite(redLed, HIGH);}
 			if(mode == 7) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, HIGH);}
-			
-			pthread_mutex_lock(&mutex1);		// Print global variables to logfile
-				//fprintf(fp, "%d   %f   %f %f %f       %d\n", mode ,yawCmd, yawIs, rudderSet, rudderIs, counter);
-			pthread_mutex_unlock(&mutex1);
 			
 		}
 		
@@ -313,10 +318,10 @@ void actuateRudder(double rudderSet, double rudderIs) {
 	double rudderMax = 10.0;
 	double rudderMin = -10.0;
 	// Constants for Florin algorithm
-	double db = 0.5;			// Dead band (deg)
-	double slow = 1.0;		// Slow speed interval (deg)
-	double pFast = 400;		// Max 1024
-	double pSlow = 200;
+	double db = 0.3;			// Dead band (deg)
+	double slow = 0.7;		// Slow speed interval (deg)
+	double pFast = 800;		// Max 1024
+	double pSlow = 400;
 	
 	if(rudderIs < rudderMin) return;
 	if(rudderIs > rudderMax) return;
@@ -358,7 +363,7 @@ void actuateRudder(double rudderSet, double rudderIs) {
 	rc++;
 */	
 	
-	printf("%d  %f\r\n", out, rudderIs);
+	printf("%f   %f    %d\r\n", rudderSet, rudderIs, out);
 	
 	if(out > 0) {
 		digitalWrite(25, HIGH);
@@ -377,7 +382,7 @@ void actuateRudder(double rudderSet, double rudderIs) {
 	}
 	
 	pthread_mutex_lock(&mutex1);
-		fprintf(fp, "%f  %f  %d\n", rudderSet, rudderIs, out);
+	//	fprintf(fp, "%f  %f  %d\n", rudderSet, rudderIs, out);
 	pthread_mutex_unlock(&mutex1);
 	
 	return;
@@ -661,13 +666,19 @@ void *th2func() {
 					 gz*M_PI/180, my, mx, -mz, deltaT);		// align magnetometer
 		}
 		
-		// Transfer values to global variables thred safe
+		// Transfer values to global variables thred safe and get gps values
 		pthread_mutex_lock(&mutex1);
 			counter++;
 			cavalloG = cavallo;
 			madgwickG = madgwick;
 			watsonG = watson;
+			double gpsCourse = gpsCourseG;
+			double gpsSpeed = gpsSpeedG;
 		pthread_mutex_unlock(&mutex1);
+		gpsCourse = gpsCourse;		// Silence compiler warnings
+		gpsSpeed = gpsSpeed;
+		
+		// Do something with gps values later on, might be better to transfer correction values
 	}
 	return 0;
 }
