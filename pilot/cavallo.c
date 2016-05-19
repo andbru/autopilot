@@ -5,11 +5,6 @@
 #include <wiringPi.h>
 #include <math.h>
 #include <stdbool.h>
-
-
-// Just testing editingin git
-
-// One more change for testing purposes
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_cblas.h>
 #include <gsl/gsl_blas.h>
@@ -33,7 +28,9 @@ struct taitBryanYPR updateCavallo(double ax, double ay, double az,
 		  double wx, double wy, double wz,
 		  double mx, double my, double mz, double dt) {
 		  
-	static bool firstTime = true;
+	static bool firstTime = true;		//  Initializaton of matrices are to complex to do
+										//  in the declaration statment. Solved by creating a code
+										//  segment thats executed only once
 
 	struct taitBryanYPR ret;
 
@@ -396,7 +393,7 @@ struct taitBryanYPR updateCavallo(double ax, double ay, double az,
 	//  Generate YPR - values
 	ret.pitch = 0;		//  Not used
 	ret.roll = wz;
-	ret.yaw = (180/M_PI)*atan2(2*(q0*q3+q1*q2), 1-2*(q2*q2+q3*q3));
+	ret.yaw = (180/M_PI)*atan2(2*(q0*q3+q1*q2), 1-2*(q2*q2+q3*q3));	//  Return value in deg (-180 to 180 deg)
 	
 	//ret.yaw = 90 - ret.yaw;		//  Switch to TaitBryan-angels Z-X'-Z'', yaw, pitch, roll
 	//if (ret.yaw < -180) ret.yaw = ret.yaw + 360;

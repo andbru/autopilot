@@ -1,5 +1,5 @@
 
-// Sensor fusion with Kalman filter, gyro and compass.		Anders Bruse 2015
+// Sensor fusion with Madgwick filter, gyro and compass.		Anders Bruse 2015
 
 struct taitBryanYPR updateMadgwick(double ax, double ay, double az,
 		  double wx, double wy, double wz,

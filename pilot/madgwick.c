@@ -1,5 +1,5 @@
 
-// Sensor fusion with Madgwick filter.		Anders Bruse 2015
+// Sensor fusion with Madgwick filter.		Anders Bruse 2016
 
 #include <stdio.h>
 #include <wiringPi.h>
@@ -142,7 +142,7 @@ struct taitBryanYPR updateMadgwick(double ax, double ay, double az,
 	// Tillfällig lösning. Approximera vinkelhastigheten med gz
 	// yawDot = -gz;		// Byt rotationsriktning
 	
-	ret.yaw = -180.0/3.14*atan2(2*(q1*q4+q2*q3), 1-2*(q3*q3+q4*q4));
+	ret.yaw = -180.0/3.14*atan2(2*(q1*q4+q2*q3), 1-2*(q3*q3+q4*q4));		//  Return value in deg (-180 to 180 deg)
 	ret.pitch = 0;		//  Not used
 	ret.roll = 0;
 	return ret;

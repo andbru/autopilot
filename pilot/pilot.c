@@ -19,7 +19,6 @@
 
 #include "global.h"
 #include "madgwick.h"
-#include "watson.h"
 #include "cavallo.h"
 
 
@@ -62,6 +61,11 @@ int main() {
 	time_t curtime;
 	struct tm *loctime;
 	
+	//*****************************************************************************
+	//  All angels are expressed in degrees between 0 and 359.999.. in all 
+	//  routines except within the sensor fusion algorithms where radians are used. 
+	//  All differences between angels are immediatly converted to +/- 180 degrees.
+	//*****************************************************************************
 	double rudderIs = 0;
 	struct timeval t0, t1, tRud0, tRud1;
 	struct timeval tReg0, tReg1;
@@ -288,7 +292,7 @@ int pollRudder(double *angel) {
 	//  uZeroDeg = voltage at 0 deg => m = - k * uZeroDeg = - degPerVolt * uZeroDeg
 	//  *******************************************************************************************
 	static double degPerVolt = 36.49 ;
-	static double uZeroDeg = 1.596;
+	static double uZeroDeg = 1.866;
 	
 	// Check DRDY#
 	if (digitalRead(6) == 0) {
@@ -315,16 +319,21 @@ int pollRudder(double *angel) {
 
 
 void actuateRudder(double rudderSet, double rudderIs) {
-	double rudderMax = 10.0;
-	double rudderMin = -10.0;
+	double rudderBound = 10.0;
 	// Constants for Florin algorithm
 	double db = 0.3;			// Dead band (deg)
 	double slow = 0.7;		// Slow speed interval (deg)
 	double pFast = 800;		// Max 1024
 	double pSlow = 400;
 	
-	if(rudderIs < rudderMin) return;
-	if(rudderIs > rudderMax) return;
+	if(rudderIs < -rudderBound) {
+		printf("Rudder out of bounds (negative)\r\n");
+		return;
+	}		
+	if(rudderIs > rudderBound) {
+		printf("Rudder out of bounds (positive)\r\n");
+		return;
+	}
 	
 	int out = 0;
 	double dr = rudderSet - rudderIs;
@@ -661,9 +670,7 @@ void *th2func() {
 
 			madgwick = updateMadgwick(ax, ay, az, gx*M_PI/180, gy*M_PI/180,	// to radians
 					 gz*M_PI/180, my, mx, -mz, deltaT);		// align magnetometer
-					 
-			 watson = updateWatson(ax, ay, az, gx*M_PI/180, gy*M_PI/180,	// to radians
-					 gz*M_PI/180, my, mx, -mz, deltaT);		// align magnetometer
+
 		}
 		
 		// Transfer values to global variables thred safe and get gps values
