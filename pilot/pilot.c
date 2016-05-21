@@ -20,6 +20,8 @@
 #include "global.h"
 #include "madgwick.h"
 #include "cavallo.h"
+#include "conversion.h"
+
 
 
 #define SIZE 256
@@ -40,13 +42,12 @@ int initGps(void);
 bool pollGps( double *speed, double *course);
 bool nmeaOk( double *speed, double *course); 
 
-// Globals
+// Globals accessable within this file or with 'extern' declaration outside
 int counter = 0;		// Global counter for test of thread handling
 pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;	// Global semafor for thread safty
 FILE *fp;		//Global filehandle to make it possible to log in all routines
-struct taitBryanYPR madgwickG;	// Global for interthread communication
-struct taitBryanYPR watsonG;		// Global for interthread communication
-struct taitBryanYPR cavalloG;		// Global for interthread communication
+struct fusionResult madgwickG;	// Global for interthread communication
+struct fusionResult cavalloG;		// Global for interthread communication
 double gpsCourseG;					// Global for interthread communication
 double gpsSpeedG;					// Global for interthread communication
 int hGps;		// Handle to serial gps port
@@ -171,7 +172,7 @@ int main() {
 			
 			//  Get global data for regulator input and rint to logfile
 			pthread_mutex_lock(&mutex1);		// Print global variables to logfile
-				fprintf(fp, "%d  %f  %f  %f  %f  %f  %f  %f\n", mode , rudderSet, rudderIs, cavalloG.yaw, cavalloG.roll, madgwickG.yaw, gpsCourse, gpsSpeed);
+				fprintf(fp, "%d  %f  %f  %f  %f  %f  %f  %f\n", mode , rudderSet, rudderIs, cavalloG.yaw, cavalloG.w, madgwickG.yaw, gpsCourse, gpsSpeed);
 			pthread_mutex_unlock(&mutex1);
 			
 			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot);
@@ -578,9 +579,8 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 
 void *th2func() {
 
-	struct taitBryanYPR madgwick;
-	struct taitBryanYPR watson;
-	struct taitBryanYPR cavallo;
+	struct fusionResult madgwick;
+	struct fusionResult cavallo;
 	
 	initMPU9250();
 	
@@ -678,7 +678,6 @@ void *th2func() {
 			counter++;
 			cavalloG = cavallo;
 			madgwickG = madgwick;
-			watsonG = watson;
 			double gpsCourse = gpsCourseG;
 			double gpsSpeed = gpsSpeedG;
 		pthread_mutex_unlock(&mutex1);

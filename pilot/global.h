@@ -53,11 +53,11 @@ unsigned long lastT = 0;
 unsigned long tMag = 0;
 unsigned long tAccGyro = 0;
 
-//  Struct for YPR return values
-struct taitBryanYPR {
+//  Struct for return values
+struct fusionResult {
 	double yaw;
-	double pitch;
-	double roll;
+	double w;
+	double wdot;
 };
 
 bool lastTime = false;

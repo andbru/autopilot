@@ -10,21 +10,23 @@
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_matrix.h>
 
+#include"conversion.h"
+
 // Function declarations //
 void matrixPrint(gsl_matrix * m, int imax, int jmax);
 void vectorPrint(gsl_vector * v, int imax);
 void matrixInverse(gsl_matrix * m, gsl_matrix * mi, int n);
 
 //  Struct for YPR return values
-struct taitBryanYPR {
+struct fusionResult {
 	double yaw;
-	double pitch;
-	double roll;
+	double w;
+	double wdot;
 };
 
 extern bool lastTime;
 
-struct taitBryanYPR updateCavallo(double ax, double ay, double az,
+struct fusionResult updateCavallo(double ax, double ay, double az,
 		  double wx, double wy, double wz,
 		  double mx, double my, double mz, double dt) {
 		  
@@ -32,7 +34,7 @@ struct taitBryanYPR updateCavallo(double ax, double ay, double az,
 										//  in the declaration statment. Solved by creating a code
 										//  segment thats executed only once
 
-	struct taitBryanYPR ret;
+	struct fusionResult ret;
 
 	//  Matrices and vectors are declared static to avoid initialization in each iteration
 	//  x and P also for keeping their value between iterations
@@ -390,14 +392,17 @@ struct taitBryanYPR updateCavallo(double ax, double ay, double az,
 	//double Id[7] = {1, 1, 1, 1, 1, 1, 1};
 	//matrixDiag(I, 7, Id);
 
-	//  Generate YPR - values
-	ret.pitch = 0;		//  Not used
-	ret.roll = wz;
-	ret.yaw = (180/M_PI)*atan2(2*(q0*q3+q1*q2), 1-2*(q2*q2+q3*q3));	//  Return value in deg (-180 to 180 deg)
+	// Numerical differentiation to get wdot
+	static double Tw = 0.05;
+	static double xw = 0;
 	
-	//ret.yaw = 90 - ret.yaw;		//  Switch to TaitBryan-angels Z-X'-Z'', yaw, pitch, roll
-	//if (ret.yaw < -180) ret.yaw = ret.yaw + 360;
-	//if (ret.yaw > 180) ret.yaw = ret.yaw - 360;
+	xw = dt / Tw * (-xw + wz) + xw;
+	double wdot = 1 / Tw * (-xw + wz);
+	
+	//  Assign return values
+	ret.wdot = wdot;	
+	ret.w = wz;
+	ret.yaw = deg0to360(radtodeg(atan2(2*(q0*q3+q1*q2), 1-2*(q2*q2+q3*q3))));	//  Return value in deg (0 to 360 deg)
 
 	return ret;
 }

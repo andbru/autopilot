@@ -10,19 +10,21 @@
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_matrix.h>
 
+#include"conversion.h"
+
 //  Struct for YPR return values
-struct taitBryanYPR {
+struct fusionResult {
 	double yaw;
-	double pitch;
-	double roll;
+	double w;
+	double wdot;
 };
 
 
-struct taitBryanYPR updateMadgwick(double ax, double ay, double az,
+struct fusionResult updateMadgwick(double ax, double ay, double az,
 		  double gx, double gy, double gz,
 		  double mx, double my, double mz, double deltat) {
 
-	struct taitBryanYPR ret;
+	struct fusionResult ret;
 
 	static double q1 = 1;   // quaternion static to keep values between iterations   
 	static double q2 = 0;
@@ -139,11 +141,9 @@ struct taitBryanYPR updateMadgwick(double ax, double ay, double az,
 	q3 = q3 * norm;
 	q4 = q4 * norm;
 
-	// Tillfällig lösning. Approximera vinkelhastigheten med gz
-	// yawDot = -gz;		// Byt rotationsriktning
-	
-	ret.yaw = -180.0/3.14*atan2(2*(q1*q4+q2*q3), 1-2*(q3*q3+q4*q4));		//  Return value in deg (-180 to 180 deg)
-	ret.pitch = 0;		//  Not used
-	ret.roll = 0;
+	//  Change to positive clockwise and downwards
+	ret.yaw = - deg0to360(radtodeg( atan2(2*(q1*q4+q2*q3), 1-2*(q3*q3+q4*q4))));		//  Return value in deg (0 to 360 deg)
+	ret.w = -gz;
+	ret.wdot = 0;
 	return ret;
 }
