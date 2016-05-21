@@ -142,8 +142,20 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	q4 = q4 * norm;
 
 	//  Change to positive clockwise and downwards
-	ret.yaw = - deg0to360(radtodeg( atan2(2*(q1*q4+q2*q3), 1-2*(q3*q3+q4*q4))));		//  Return value in deg (0 to 360 deg)
-	ret.w = -gz;
-	ret.wdot = 0;
+	double yaw = - deg0to360(radtodeg( atan2(2*(q1*q4+q2*q3), 1-2*(q3*q3+q4*q4))));		//  Return value in deg (0 to 360 deg)
+	double w = -gz;
+	
+	// Numerical differentiation to get wdot
+	static double Tw = 0.05;
+	static double xw = 0;
+	
+	xw = deltat / Tw * (-xw + w) + xw;
+	double wdot = 1 / Tw * (-xw + w);
+	
+	// Assign return values
+	ret.yaw = yaw;
+	ret.w = w;
+	ret.wdot = wdot;
+	
 	return ret;
 }

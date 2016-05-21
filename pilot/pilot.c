@@ -172,7 +172,7 @@ int main() {
 			
 			//  Get global data for regulator input and rint to logfile
 			pthread_mutex_lock(&mutex1);		// Print global variables to logfile
-				fprintf(fp, "%d  %f  %f  %f  %f  %f  %f  %f\n", mode , rudderSet, rudderIs, cavalloG.yaw, cavalloG.w, madgwickG.yaw, gpsCourse, gpsSpeed);
+				fprintf(fp, "%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\n", mode , rudderSet, rudderIs, cavalloG.yaw, cavalloG.w, cavalloG.wdot, madgwickG.yaw, madgwickG.w, madgwickG.wdot, gpsCourse, gpsSpeed);
 			pthread_mutex_unlock(&mutex1);
 			
 			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot);
