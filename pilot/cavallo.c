@@ -396,7 +396,7 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 	//matrixDiag(I, 7, Id);
 
 	// Numerical differentiation to get wdot
-	static double Tw = 0.05;
+	static double Tw = 0.25;
 	static double xw = 0;
 	
 	xw = dt / Tw * (-xw + wz) + xw;

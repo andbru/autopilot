@@ -160,7 +160,8 @@ int main() {
 			case 7:
 				yawCmd = yawIs;
 				break;	
-		}				
+		}
+		yawCmd = deg0to360(yawCmd);		// Esure right interval				
 				
 		//  Call PID regulator 10 times per second independent of mode.
 		//  That gives PID opportunity to follow compass in standby
@@ -170,14 +171,30 @@ int main() {
 			tReg0 = tReg1;
 			
 			//  Get global data for regulator input and rint to logfile
+			double cY;
+			double cW;
+			double cWd;
+			double mY;
+			double mW;
+			double mWd;
 			pthread_mutex_lock(&mutex1);		// Print global variables to logfile
-				fprintf(fp, "%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\n", mode , rudderSet, rudderIs, cavalloG.yaw, cavalloG.w, cavalloG.wdot, madgwickG.yaw, madgwickG.w, madgwickG.wdot, gpsCourse, gpsSpeed);
-							printf("%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\r\n", mode , rudderSet, rudderIs, cavalloG.yaw, cavalloG.w, cavalloG.wdot, madgwickG.yaw, madgwickG.w, madgwickG.wdot, gpsCourse, gpsSpeed);
+				cY = cavalloG.yaw;
+				cW = cavalloG.w;
+				cWd = cavalloG.wdot;
+				mY = madgwickG.yaw;
+				mW = madgwickG.w;
+				mWd = madgwickG.wdot;
 			pthread_mutex_unlock(&mutex1);
 			
-			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot);
+			fprintf(fp, "%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\n", mode , rudderSet, rudderIs, cY, cW, cWd, mY, mW, mWd, gpsCourse, gpsSpeed);
+			printf("%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\r\n", mode , rudderSet, rudderIs, cY, cW, cWd, mY, mW, mWd, gpsCourse, gpsSpeed);
 			
-			//  Finalize the line in logfile wit rudderPID
+			yawIs = mY;		// Chose sensor algorithm
+			w = mW;
+			wDot = mWd;
+			
+			// Call regulator
+			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot);
 			
 			
 			if(mode == 0) { digitalWrite(greenLed, LOW); digitalWrite(redLed, LOW);}	//Light up the Led's
@@ -237,14 +254,22 @@ double elapsed(struct timeval t1, struct timeval t0){
 }
 
 
-double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
+double PIDAreg(int mode, double yawCmdDeg, double yawIsDeg, double wDeg, double wDotDeg) {
+
+	// All calculations in radians in this function
+	double yawCmd = degtorad(yawCmdDeg);
+	double yawIs = degtorad(yawIsDeg);
+	double w = degtorad(wDeg);
+	double wDot = degtorad(wDotDeg);
 	
 	// Reference model for setpoint limitation.(Fossen chapter 10.2.1)
 	static double dt = 0.1;	// Time interval for PID reg in seconds
-	static double rdmax = 3.0 *3.14 /180;		// Desired max rate 3 deg into radians
-	static double admax = 1.0 *3.14 /180;	// Desired max accelration 1 deg into radians
+	static double rdmax;
+	static double admax;
+	rdmax = degtorad(3.0);		// Desired max rate 3 deg into radians
+	admax = degtorad(1.0);		// Desired max accelration 1 deg into radians
 	static double xsi = 2.0;		// Damper spring and
-	static double ws = 0.63;	//    lp filter constants
+	static double ws = 0.63;	//  lp filter constants
 	static double psid = 0;		//  Desired yaw in rad
 	static double rd = 0;			//  Desired angular rate
 	static double ad = 0;		//  Desired angular accelration
@@ -255,19 +280,17 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	if(rd >=   rdmax) rd =   rdmax;		//  Rate saturation
 	if(rd <= - rdmax) rd = - rdmax;
 	
-	ad = -dt*(2*xsi+1)*ws*ad -dt*(2*xsi+1)*ws*ws*rd -dt*ws*ws*ws*(psid-yawCmd*3.14/180) +ad;
+	ad = -dt*(2*xsi+1)*ws*ad -dt*(2*xsi+1)*ws*ws*rd -dt*ws*ws*ws*radpitopi((psid-yawCmd)) +ad;
 	if(ad >=   admax) ad =   admax;	//  Accelration saturation
 	if(ad <= - admax) ad = - admax;
 		
 	
 	//  PID-regulator with accelration feedback (Fossen capter 12.2.6
 	//  Formulas 12.154 and 12.155 and differentiated filtered accelration 12.153)
-	static double Knomoto = 0.34;		// Typical for 6 knots
-	static double Tnomoto = 0.;		// Independaent of speed
+	static double Knomoto = 0.75;		// Typical for 6 knots
+	static double Tnomoto = 3.0;		// Typical for 6 knots
 	static double integralPsiTilde = 0;
-	double psiTilde = yawIs - psid;		// diff from desired setpoint
-	if(psiTilde < -3.14) psiTilde += 2 * 3.14;	// Ensure -pi < angel <pi
-	if(psiTilde > 3.14) psiTilde -= 2 * 3.14;
+	double psiTilde = radpitopi(yawIs - psid);		// diff from desired setpoint
 	
 	integralPsiTilde += psiTilde * dt;	// Integral diff
 	
@@ -298,7 +321,7 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	
 	double rudderMoment = tauFF - Kp * psiTilde - Kd * rTilde -Ki * integralPsiTilde -Km * wDot;
 	
-	return rudderMoment / 3.14 * 180;
+	return deg180to180(radtodeg(rudderMoment));
 }
 
 

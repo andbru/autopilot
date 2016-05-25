@@ -15,6 +15,7 @@
 #include<pthread.h>
 
 #include "rudder.h"
+#include "conversion.h"
 
 void initRudder(void) {
 	
@@ -117,6 +118,7 @@ void actuateRudder(double rudderSet, double rudderIs) {
 	
 	int out = 0;
 	double dr = rudderSet - rudderIs;
+	dr = deg180to180(dr);	// Ensure right interval
 		
 	if(dr < -slow) out = - pFast;
 	if((-slow < dr) && (dr < -db)) out = - pSlow;

@@ -39,8 +39,9 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	static double gbiasy = 0;
 	static double gbiasz = 0;
 
-	static double beta = 0.0756;		//  Madgwick report
-	//static double beta = 0.041;
+	static double beta = 0.31;			//  Best compromise
+	//static double beta = 0.62;			//  Chris Winer
+	//static double beta = 0.041;		//  Madgwick report
 	static double zeta = 0.0030;		//  Madgwick report
 
 	double norm;
@@ -150,7 +151,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	double w = -gz;
 	
 	// Numerical differentiation to get wdot
-	static double Tw = 0.05;
+	static double Tw = 0.25;
 	static double xw = 0;
 	
 	xw = deltat / Tw * (-xw + w) + xw;
