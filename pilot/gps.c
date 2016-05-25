@@ -1,4 +1,27 @@
 
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <time.h>
+#include <sys/time.h>
+#include <math.h>
+#include <wiringPi.h>
+#include <wiringPiSPI.h>
+#include <linux/spi/spidev.h>
+#include<ncurses.h>
+#include<pthread.h>
+#include<stdlib.h>
+#include<string.h>
+#include <wiringSerial.h>
+
+#include "gps.h"
+
+int hGps;		// Handle to serial gps port
+char nmea[100] = "";	// Buffer for nmea-sentences
+
 int initGps() {
 	int handle = serialOpen("/dev/ttyAMA0", 9600);
 	if(handle<0) return -1;
@@ -128,3 +151,4 @@ bool nmeaOk( double *course, double *speed) {
 		}
 	}
 	return false;
+}

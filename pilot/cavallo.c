@@ -110,8 +110,7 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 		 gsl_matrix_set_identity(I);		 
 		 
 	}	//  End of initialization in first iteration
-	
-	if(lastTime) matrixPrint(K, 7, 9);
+
 	
 	//  Start of code segment that are executed every iteration
 	//
