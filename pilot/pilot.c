@@ -173,6 +173,7 @@ int main() {
 			//  Get global data for regulator input and rint to logfile
 			pthread_mutex_lock(&mutex1);		// Print global variables to logfile
 				fprintf(fp, "%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\n", mode , rudderSet, rudderIs, cavalloG.yaw, cavalloG.w, cavalloG.wdot, madgwickG.yaw, madgwickG.w, madgwickG.wdot, gpsCourse, gpsSpeed);
+							printf("%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\r\n", mode , rudderSet, rudderIs, cavalloG.yaw, cavalloG.w, cavalloG.wdot, madgwickG.yaw, madgwickG.w, madgwickG.wdot, gpsCourse, gpsSpeed);
 			pthread_mutex_unlock(&mutex1);
 			
 			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot);
@@ -373,7 +374,7 @@ void actuateRudder(double rudderSet, double rudderIs) {
 	rc++;
 */	
 	
-	printf("%f   %f    %d\r\n", rudderSet, rudderIs, out);
+	//printf("%f   %f    %d\r\n", rudderSet, rudderIs, out);
 	
 	if(out > 0) {
 		digitalWrite(25, HIGH);
@@ -665,11 +666,9 @@ void *th2func() {
 					 gz*M_PI/180, my, mx, -mz, deltaT);		// align magnetometer
 			*/
 			
-			cavallo = updateCavallo(ax, -ay, -az, gx*M_PI/180, -gy*M_PI/180,	// to radians
-					 -gz*M_PI/180, -mx, my, mz, deltaT);		// align magnetometer
+			cavallo = updateCavallo(ax, -ay, -az, gx, -gy, -gz, -mx, my, mz, deltaT);		// filter
 
-			madgwick = updateMadgwick(ax, ay, az, gx*M_PI/180, gy*M_PI/180,	// to radians
-					 gz*M_PI/180, my, mx, -mz, deltaT);		// align magnetometer
+			madgwick = updateMadgwick(ax, ay, az, gx, gy,	gz, my, mx, -mz, deltaT);		// filter
 
 		}
 		

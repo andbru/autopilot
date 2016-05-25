@@ -27,8 +27,12 @@ struct fusionResult {
 extern bool lastTime;
 
 struct fusionResult updateCavallo(double ax, double ay, double az,
-		  double wx, double wy, double wz,
+		  double wxDeg, double wyDeg, double wzDeg,
 		  double mx, double my, double mz, double dt) {
+	
+	double wx = degtorad(wxDeg);
+	double wy = degtorad(wyDeg);
+	double wz = degtorad(wzDeg);
 		  
 	static bool firstTime = true;		//  Initializaton of matrices are to complex to do
 										//  in the declaration statment. Solved by creating a code

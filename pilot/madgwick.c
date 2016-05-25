@@ -21,8 +21,12 @@ struct fusionResult {
 
 
 struct fusionResult updateMadgwick(double ax, double ay, double az,
-		  double gx, double gy, double gz,
+		  double gxDeg, double gyDeg, double gzDeg,
 		  double mx, double my, double mz, double deltat) {
+		  
+	double gx = degtorad(gxDeg);
+	double gy = degtorad(gyDeg);
+	double gz = degtorad(gzDeg);
 
 	struct fusionResult ret;
 
@@ -35,8 +39,8 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	static double gbiasy = 0;
 	static double gbiasz = 0;
 
-	//static double beta = 0.0756;		//  Madgwick report
-	static double beta = 0.041;
+	static double beta = 0.0756;		//  Madgwick report
+	//static double beta = 0.041;
 	static double zeta = 0.0030;		//  Madgwick report
 
 	double norm;
@@ -142,7 +146,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	q4 = q4 * norm;
 
 	//  Change to positive clockwise and downwards
-	double yaw = - deg0to360(radtodeg( atan2(2*(q1*q4+q2*q3), 1-2*(q3*q3+q4*q4))));		//  Return value in deg (0 to 360 deg)
+	double yaw = deg0to360(- radtodeg( atan2(2*(q1*q4+q2*q3), 1-2*(q3*q3+q4*q4))));		//  Return value in deg (0 to 360 deg)
 	double w = -gz;
 	
 	// Numerical differentiation to get wdot
