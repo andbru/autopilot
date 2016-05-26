@@ -50,6 +50,7 @@ double gpsSpeedG;					// Global for interthread communication
 // Function prototypes, code at the end
 double elapsed(struct timeval t1, struct timeval t0);
 double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot);
+struct fusionResult simulate(double rudSet, double dt);
 
 	
 int main() {
@@ -165,19 +166,19 @@ int main() {
 				
 		//  Call PID regulator 10 times per second independent of mode.
 		//  That gives PID opportunity to follow compass in standby
-		double rudderPID = 0;
+		static double rudderPID = 0;
 		gettimeofday(&tReg1, NULL);
 		if(elapsed(tReg1, tReg0) > 100.0) {
 			tReg0 = tReg1;
 			
-			//  Get global data for regulator input and rint to logfile
+			//  Get global data for regulator input and print to logfile
 			double cY;
 			double cW;
 			double cWd;
 			double mY;
 			double mW;
 			double mWd;
-			pthread_mutex_lock(&mutex1);		// Print global variables to logfile
+			pthread_mutex_lock(&mutex1);		// Fetch global data
 				cY = cavalloG.yaw;
 				cW = cavalloG.w;
 				cWd = cavalloG.wdot;
@@ -185,17 +186,35 @@ int main() {
 				mW = madgwickG.w;
 				mWd = madgwickG.wdot;
 			pthread_mutex_unlock(&mutex1);
-			
+			// Print global variables to logfile
 			fprintf(fp, "%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\n", mode , rudderSet, rudderIs, cY, cW, cWd, mY, mW, mWd, gpsCourse, gpsSpeed);
-			printf("%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\r\n", mode , rudderSet, rudderIs, cY, cW, cWd, mY, mW, mWd, gpsCourse, gpsSpeed);
+			//printf("%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\r\n", mode , rudderSet, rudderIs, cY, cW, cWd, mY, mW, mWd, gpsCourse, gpsSpeed);
 			
-			yawIs = mY;		// Chose sensor algorithm
-			w = mW;
-			wDot = mWd;
+			//  Simulate behaviour according to rudderSet
+			struct fusionResult sim;
+			sim = simulate(rudderSet, 0.1);
+			
+			switch(3) {				// Chose sensor algorithm or simulation
+				case 1:				// Madgwick
+					yawIs = mY;		
+					w = mW;
+					wDot = mWd;
+					break;
+				case 2:				// Cavallo
+					yawIs = cY;		
+					w = cW;
+					wDot = cWd;
+					break;
+				case 3:				// Simulation
+					yawIs = sim.yaw;		
+					w = sim.w;
+					wDot = sim.wdot;
+					break;
+			}
 			
 			// Call regulator
 			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot);
-			
+			printf("%f  %f  %f  %f  %f\r\n", yawCmd, rudderSet, sim.yaw, sim.w, sim.wdot);
 			
 			if(mode == 0) { digitalWrite(greenLed, LOW); digitalWrite(redLed, LOW);}	//Light up the Led's
 			if(mode == 1) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, LOW);}
@@ -266,7 +285,7 @@ double PIDAreg(int mode, double yawCmdDeg, double yawIsDeg, double wDeg, double 
 	static double dt = 0.1;	// Time interval for PID reg in seconds
 	static double rdmax;
 	static double admax;
-	rdmax = degtorad(3.0);		// Desired max rate 3 deg into radians
+	rdmax = degtorad(5.0);		// Desired max rate 3 deg into radians
 	admax = degtorad(1.0);		// Desired max accelration 1 deg into radians
 	static double xsi = 2.0;		// Damper spring and
 	static double ws = 0.63;	//  lp filter constants
@@ -290,14 +309,15 @@ double PIDAreg(int mode, double yawCmdDeg, double yawIsDeg, double wDeg, double 
 	static double Knomoto = 0.75;		// Typical for 6 knots
 	static double Tnomoto = 3.0;		// Typical for 6 knots
 	static double integralPsiTilde = 0;
+	
 	double psiTilde = radpitopi(yawIs - psid);		// diff from desired setpoint
 	
 	integralPsiTilde += psiTilde * dt;	// Integral diff
 	
 	double rTilde = w -rd;		// Diff in angular rate
 	
-	static double wb = 1;
-	static double alfa = 0;
+	static double wb = 1.0;
+	static double alfa = 25;
 	double m = Tnomoto / Knomoto;
 	double wn = 1.56 * wb;
 	double Km;
@@ -308,8 +328,8 @@ double PIDAreg(int mode, double yawCmdDeg, double yawIsDeg, double wDeg, double 
 	if(true) {
 		Km = alfa / 100 * m;
 		Kp = (m + Km) * wn * wn;
-		Kd = 2 * 1 * wn *(m + Km) - m / Tnomoto;
-		Ki = wn * 10 * Kp;
+		Kd = 2 * 1 * wn *(m + Km) - 1/ Knomoto;
+		Ki = wn / 10 * Kp;
 	} else {
 		Km = 0;
 		Kp = 3;
@@ -321,7 +341,35 @@ double PIDAreg(int mode, double yawCmdDeg, double yawIsDeg, double wDeg, double 
 	
 	double rudderMoment = tauFF - Kp * psiTilde - Kd * rTilde -Ki * integralPsiTilde -Km * wDot;
 	
+	//printf("%f  %f  %f  %f\r\n", yawCmd, psid, yawIsDeg, psiTilde);
+	
 	return deg180to180(radtodeg(rudderMoment));
 }
+
+
+struct fusionResult simulate(double rudSet, double dt) {
+	
+	static double w = 0;
+	static double psi = 0;
+	static double wDot = 0;
+	static double x = 0;
+	static double Kn = 0.75;		// Nomoto constants for simulation model
+	static double Tn = 3.0;
+	static double Tf = 0.5;		// Numerical differiation filter constant for wDot
+	
+	w = dt/Tn*(Kn*rudSet - w) + w;		// Nomoto
+	psi = w * dt + psi;
+	x = dt / Tf *(w - x) + x;				// Numerical differentiation
+	wDot = 1 / Tf *(w - x);
+	
+	struct fusionResult sim;
+	sim.yaw = psi;
+	sim.w = w;
+	sim.wdot = wDot;
+
+	return sim;
+}
+
+
 
 
