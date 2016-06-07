@@ -194,7 +194,7 @@ int main() {
 			struct fusionResult sim;
 			sim = simulate(rudderSet, 0.1);
 			
-			switch(3) {				// Chose sensor algorithm or simulation
+			switch(1) {				// Chose sensor algorithm or simulation
 				case 1:				// Madgwick
 					yawIs = mY;		
 					w = mW;
@@ -214,7 +214,7 @@ int main() {
 			
 			// Call regulator
 			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot);
-			printf("%f  %f  %f  %f  %f\r\n", yawCmd, rudderSet, sim.yaw, sim.w, sim.wdot);
+			printf("%f  %f  %f  %f  %f\r\n", yawCmd, rudderSet, yawIs, w, wDot);
 			
 			if(mode == 0) { digitalWrite(greenLed, LOW); digitalWrite(redLed, LOW);}	//Light up the Led's
 			if(mode == 1) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, LOW);}
@@ -325,7 +325,7 @@ double PIDAreg(int mode, double yawCmdDeg, double yawIsDeg, double wDeg, double 
 	double Kd;
 	double Ki;
 	// If true - automatic parameter calculation from wb and alfa
-	if(true) {
+	if(false) {
 		Km = alfa / 100 * m;
 		Kp = (m + Km) * wn * wn;
 		Kd = 2 * 1 * wn *(m + Km) - 1/ Knomoto;
