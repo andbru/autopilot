@@ -281,7 +281,6 @@ double PIDAreg(int mode, double yawCmdDeg, double yawIsDeg, double wDeg, double 
 	double w = degtorad(wDeg);
 	double wDot = degtorad(wDotDeg);
 	
-	// Reference model for setpoint limitation.(Fossen chapter 10.2.1)
 	static double dt = 0.1;	// Time interval for PID reg in seconds
 	static double rdmax;
 	static double admax;
@@ -293,57 +292,79 @@ double PIDAreg(int mode, double yawCmdDeg, double yawIsDeg, double wDeg, double 
 	static double rd = 0;			//  Desired angular rate
 	static double ad = 0;		//  Desired angular accelration
 	
-	psid = dt * rd + psid;
+	static double psiTilde = 0;	// Yaw error
+	static double rTilde = 0;		// w error
+	static double integralPsiTilde = 0;	// Integral of yaw error
+	static double rudderMoment = 0;	// Regulator output
 	
-	rd = dt * ad + rd;
-	if(rd >=   rdmax) rd =   rdmax;		//  Rate saturation
-	if(rd <= - rdmax) rd = - rdmax;
+	// Only run setpoint limitation and PID reg when heading hold (mode == 2)
+	if(mode == 2) {
 	
-	ad = -dt*(2*xsi+1)*ws*ad -dt*(2*xsi+1)*ws*ws*rd -dt*ws*ws*ws*radpitopi((psid-yawCmd)) +ad;
-	if(ad >=   admax) ad =   admax;	//  Accelration saturation
-	if(ad <= - admax) ad = - admax;
+		// Reference model for setpoint limitation.(Fossen chapter 10.2.1)
+		psid = dt * rd + psid;
+	
+		rd = dt * ad + rd;
+		if(rd >=   rdmax) rd =   rdmax;		//  Rate saturation
+		if(rd <= - rdmax) rd = - rdmax;
+	
+		ad = -dt*(2*xsi+1)*ws*ad -dt*(2*xsi+1)*ws*ws*rd -dt*ws*ws*ws*radpitopi((psid-yawCmd)) +ad;
+		if(ad >=   admax) ad =   admax;	//  Accelration saturation
+		if(ad <= - admax) ad = - admax;
 		
 	
-	//  PID-regulator with accelration feedback (Fossen capter 12.2.6
-	//  Formulas 12.154 and 12.155 and differentiated filtered accelration 12.153)
-	static double Knomoto = 0.75;		// Typical for 6 knots
-	static double Tnomoto = 3.0;		// Typical for 6 knots
-	static double integralPsiTilde = 0;
+		//  PID-regulator with accelration feedback (Fossen capter 12.2.6
+		//  Formulas 12.154 and 12.155 and differentiated filtered accelration 12.153)
+		static double Knomoto = 0.75;		// Typical for 6 knots
+		static double Tnomoto = 3.0;		// Typical for 6 knots
 	
-	double psiTilde = radpitopi(yawIs - psid);		// diff from desired setpoint
+		psiTilde = radpitopi(yawIs - psid);		// diff from desired setpoint
 	
-	integralPsiTilde += psiTilde * dt;	// Integral diff
+		integralPsiTilde += psiTilde * dt;	// Integral diff
 	
-	double rTilde = w -rd;		// Diff in angular rate
+		rTilde = w -rd;		// Diff in angular rate
 	
-	static double wb = 1.0;
-	static double alfa = 25;
-	double m = Tnomoto / Knomoto;
-	double wn = 1.56 * wb;
-	double Km;
-	double Kp;
-	double Kd;
-	double Ki;
-	// If true - automatic parameter calculation from wb and alfa
-	if(false) {
-		Km = alfa / 100 * m;
-		Kp = (m + Km) * wn * wn;
-		Kd = 2 * 1 * wn *(m + Km) - 1/ Knomoto;
-		Ki = wn / 10 * Kp;
-	} else {
-		Km = 0;
-		Kp = 3;
-		Kd = 0.5;
-		Ki = 0.1;
+		static double wb = 1.0;
+		static double alfa = 25;
+		double m = Tnomoto / Knomoto;
+		double wn = 1.56 * wb;
+		double Km;
+		double Kp;
+		double Kd;
+		double Ki;
+		// If true - automatic parameter calculation from wb and alfa
+		if(false) {
+			Km = alfa / 100 * m;
+			Kp = (m + Km) * wn * wn;
+			Kd = 2 * 1 * wn *(m + Km) - 1/ Knomoto;
+			Ki = wn / 10 * Kp;
+		} else {
+			Km = 0;
+			Kp = 3;
+			Kd = 0.5;
+			Ki = 0.1;
+		}
+		
+		double tauFF = (m +Km) * (ad + rd / Tnomoto);
+	
+		rudderMoment = tauFF - Kp * psiTilde - Kd * rTilde -Ki * integralPsiTilde -Km * wDot;
+		
+		//printf("%f  %f  %f  %f\r\n", yawCmd, psid, yawIsDeg, psiTilde);
+		return deg180to180(radtodeg(rudderMoment));
+	
+	} else {		// If not mode == 2, let parameters follow actual values
+		psid = yawIs;
+		rd = w;
+		ad = 0;
+		psiTilde = 0;
+		rTilde = 0;
+		integralPsiTilde = 0;
+		rudderMoment = 0;
+		
+		return 0;
 	}
-		
-	double tauFF = (m +Km) * (ad + rd / Tnomoto);
 	
-	double rudderMoment = tauFF - Kp * psiTilde - Kd * rTilde -Ki * integralPsiTilde -Km * wDot;
 	
-	//printf("%f  %f  %f  %f\r\n", yawCmd, psid, yawIsDeg, psiTilde);
 	
-	return deg180to180(radtodeg(rudderMoment));
 }
 
 

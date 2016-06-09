@@ -73,7 +73,7 @@ int pollRudder(double *angel) {
 	//  uZeroDeg = voltage at 0 deg => m = - k * uZeroDeg = - degPerVolt * uZeroDeg
 	//  *******************************************************************************************
 	static double degPerVolt = 36.49 ;
-	static double uZeroDeg = 1.866;
+	static double uZeroDeg = 1.756;
 	
 	// Check DRDY#
 	if (digitalRead(6) == 0) {
