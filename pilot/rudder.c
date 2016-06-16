@@ -107,15 +107,6 @@ void actuateRudder(double rudderSet, double rudderIs) {
 	double pFast = 800;		// Max 1024
 	double pSlow = 400;
 	
-	if(rudderIs < -rudderBound) {
-		printf("Rudder out of bounds (negative)\r\n");
-		return;
-	}		
-	if(rudderIs > rudderBound) {
-		printf("Rudder out of bounds (positive)\r\n");
-		return;
-	}
-	
 	int out = 0;
 	double dr = rudderSet - rudderIs;
 	dr = deg180to180(dr);	// Ensure right interval
@@ -126,46 +117,26 @@ void actuateRudder(double rudderSet, double rudderIs) {
 	if((db < dr) && (dr < slow)) out = pSlow;
 	if( dr > slow) out = pFast;
 
-/*
-	static int rc = 0;
-
-	if(rc <= 200) out = 0;
-	if(rc > 200) out = 800;
-	if(rc > 250) out = 0;
-	if(rc > 400) out = -800;
-	if(rc > 450) out = 0;
-	if(rc > 700) out = 400;
-	if(rc > 750) out = 0;
-	if(rc > 1000) out = -400;
-	if(rc > 1050) out = 0;
-	if(rc > 1500) out = 200;
-	if(rc > 1600) out = 0;
-	if(rc > 2000) out = -200;
-	if(rc > 2100) out = 0;
-	if(rc > 2500) out = 100;
-	if(rc > 2800) out = 0;
-	if(rc > 3000) out = -50;
-	if(rc > 3400) out = 0;
-	if(rc > 3500) out = -10;
-	if(rc > 3900) out = 0;
-	if(rc > 4000) out = -5;
-	if(rc > 4500) out = 0;
-
-	rc++;
-*/	
-	
-	//printf("%f   %f    %d\r\n", rudderSet, rudderIs, out);
-	
 	if(out > 0) {
+		if(rudderIs > rudderBound) {
+			printf("Rudder out of bounds (positive)\r\n");
+			return;
+		}
 		digitalWrite(25, HIGH);
 		pwmWrite(24, 0);
 		pwmWrite(1, out);
 	}
+	
 	if(out < 0) {
+		if(rudderIs < -rudderBound) {
+			printf("Rudder out of bounds (negative)\r\n");
+			return;
+		}	
 		digitalWrite(25, HIGH);	
 		pwmWrite(1, 0);
 		pwmWrite(24, -out);
 	}
+	
 	if(out == 0) {
 		digitalWrite(25, HIGH);
 		pwmWrite(1, 0);

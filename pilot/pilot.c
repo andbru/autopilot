@@ -24,6 +24,7 @@
 #include "gps.h"
 #include "rudder.h"
 #include "compass.h"
+#include "server.h"
 
 
 // Globals accessable from all files if declared as "extern"
@@ -55,8 +56,10 @@ struct fusionResult simulate(double rudSet, double dt);
 	
 int main() {
 	
-	int rc1;
+	int rc2;			// Handle and struct for new threads
 	pthread_t th2;
+	int rc3;
+	pthread_t th3;
 	
 	char fname[SIZE];
 	time_t curtime;
@@ -91,7 +94,10 @@ int main() {
 	fp  = fopen(fname, "w");
 	
 	// Start the second thread with gyro compass	
-	if((rc1 = pthread_create(&th2, NULL, &compass, NULL))) printf("No thread created\\n");
+	if((rc2 = pthread_create(&th2, NULL, &compass, NULL))) printf("No thread #2 created\\n");
+	
+	// Start the third thread with tcp server for user communication	
+	if((rc3 = pthread_create(&th3, NULL, &tcpserver, NULL))) printf("No thread #3 created\\n");
 	sleep(2);		// Wait for thread to initiate
 	
 	// Initiate hardware
@@ -340,8 +346,8 @@ double PIDAreg(int mode, double yawCmdDeg, double yawIsDeg, double wDeg, double 
 		} else {
 			Km = 0;
 			Kp = 2;
-			Kd = 40;
-			Ki = 0.0;
+			Kd = 0.5;
+			Ki = 0.1;
 		}
 		
 		double tauFF = (m +Km) * (ad + rd / Tnomoto);
@@ -390,6 +396,8 @@ struct fusionResult simulate(double rudSet, double dt) {
 
 	return sim;
 }
+
+
 
 
 
