@@ -187,7 +187,7 @@ int main() {
 				mWd = madgwickG.wdot;
 			pthread_mutex_unlock(&mutex1);
 			// Print global variables to logfile
-			fprintf(fp, "%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\n", mode , rudderSet, rudderIs, cY, cW, cWd, mY, mW, mWd, gpsCourse, gpsSpeed);
+			fprintf(fp, "%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\n", mode , yawCmd, rudderSet, rudderIs, cY, cW, cWd, mY, mW, mWd, gpsCourse, gpsSpeed);
 			//printf("%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\r\n", mode , rudderSet, rudderIs, cY, cW, cWd, mY, mW, mWd, gpsCourse, gpsSpeed);
 			
 			//  Simulate behaviour according to rudderSet
@@ -284,10 +284,10 @@ double PIDAreg(int mode, double yawCmdDeg, double yawIsDeg, double wDeg, double 
 	static double dt = 0.1;	// Time interval for PID reg in seconds
 	static double rdmax;
 	static double admax;
-	rdmax = degtorad(5.0);		// Desired max rate 3 deg into radians
+	rdmax = degtorad(3.0);		// Desired max rate 3 deg into radians
 	admax = degtorad(1.0);		// Desired max accelration 1 deg into radians
-	static double xsi = 2.0;		// Damper spring and
-	static double ws = 0.63;	//  lp filter constants
+	static double xsi = 1.0;		// Damper spring and
+	static double ws = 1.0;	//  lp filter constants
 	static double psid = 0;		//  Desired yaw in rad
 	static double rd = 0;			//  Desired angular rate
 	static double ad = 0;		//  Desired angular accelration
@@ -339,9 +339,9 @@ double PIDAreg(int mode, double yawCmdDeg, double yawIsDeg, double wDeg, double 
 			Ki = wn / 10 * Kp;
 		} else {
 			Km = 0;
-			Kp = 3;
-			Kd = 0.5;
-			Ki = 0.1;
+			Kp = 2;
+			Kd = 40;
+			Ki = 0.0;
 		}
 		
 		double tauFF = (m +Km) * (ad + rd / Tnomoto);
