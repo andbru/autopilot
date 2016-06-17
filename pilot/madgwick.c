@@ -189,7 +189,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	
 	// Assign return values
 	ret.yaw = yaw;
-	ret.w = radtodeg(w);
+	ret.w = radtodeg(wlp);
 	ret.wdot = radtodeg(wdot);
 	
 	return ret;
