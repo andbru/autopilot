@@ -398,13 +398,12 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 	// Numerical differentiation to get wdot
 	static double Tw = 0.25;
 	static double xw = 0;
-	
 	xw = dt / Tw * (-xw + wz) + xw;
 	double wdot = 1 / Tw * (-xw + wz);
 	
 	//  Assign return values
 	ret.wdot = radtodeg(wdot);	
-	ret.w = radtodeg(wz);
+	ret.w = radtodeg(wzh);
 	ret.yaw = deg0to360(radtodeg(atan2(2*(q0*q3+q1*q2), 1-2*(q2*q2+q3*q3))));	//  Return value in deg (0 to 360 deg)
 
 	return ret;

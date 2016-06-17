@@ -177,9 +177,9 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	double w = -gz;
 	
 	// LP-filter for w
-	static double kw = 0.2;
+	static double kw = 0.1;
 	static double wlp = 0;
-	wlp = w *kw + (1 -kw) * wlp;
+	wlp = w * kw + (1 -kw) * wlp;
 	
 	// Numerical differentiation to get wdot
 	static double Tw = 0.25;
@@ -189,7 +189,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	
 	// Assign return values
 	ret.yaw = yaw;
-	ret.w = radtodeg(wlp);
+	ret.w = radtodeg(w);
 	ret.wdot = radtodeg(wdot);
 	
 	return ret;

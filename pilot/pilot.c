@@ -184,7 +184,7 @@ int main() {
 			double mY;
 			double mW;
 			double mWd;
-			pthread_mutex_lock(&mutex1);		// Fetch global data
+			pthread_mutex_lock(&mutex1);		// Get global data
 				cY = cavalloG.yaw;
 				cW = cavalloG.w;
 				cWd = cavalloG.wdot;
