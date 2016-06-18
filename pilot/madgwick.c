@@ -39,7 +39,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	static double gbiasy = 0;
 	static double gbiasz = 0;
 
-	static double beta = 0.041;			//  Best compromise
+	static double beta = 0.2;			//  Best compromise
 	//static double beta = 0.62;			//  Chris Winer
 	//static double beta = 0.041;		//  Madgwick report
 	static double zeta = 0.0030;		//  Madgwick report
@@ -177,7 +177,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	double w = -gz;
 	
 	// LP-filter for w
-	static double kw = 0.1;
+	static double kw = 0.05;
 	static double wlp = 0;
 	wlp = w * kw + (1 -kw) * wlp;
 	
