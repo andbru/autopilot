@@ -184,8 +184,8 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	// Numerical differentiation to get wdot
 	static double Tw = 0.25;
 	static double xw = 0;
-	xw = deltat / Tw * (-xw + w) + xw;
-	double wdot = 1 / Tw * (-xw + w);
+	xw = deltat / Tw * (-xw + wlp) + xw;
+	double wdot = 1 / Tw * (-xw + wlp);
 	
 	// Assign return values
 	ret.yaw = yaw;
