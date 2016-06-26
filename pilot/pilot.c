@@ -342,7 +342,7 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 		} else {
 			Km = 0;
 			Kp = 2;
-			Kd = 0.5;
+			Kd = 2;
 			Ki = 0.1;
 		}
 		
