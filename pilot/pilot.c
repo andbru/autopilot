@@ -342,8 +342,8 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 		} else {
 			Km = 0;
 			Kp = 1;
-			Kd = 0;
-			Ki = 0;
+			Kd = 0.5;
+			Ki = 0.05;
 		}
 		
 		tauFF = (m +Km) * (ad + rd / Tnomoto);
