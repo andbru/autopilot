@@ -38,12 +38,22 @@ struct fusionResult {
 
 int counter = 0;		// Global counter for test of thread handling
 pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;	// Global semafor for thread safty
+pthread_mutex_t mutexTcp = PTHREAD_MUTEX_INITIALIZER;	// Global semafor for thread safty
 FILE *fp;		//Global filehandle to make it possible to log in all routines
 struct fusionResult madgwickG;	// Global for interthread communication
 struct fusionResult cavalloG;		// Global for interthread communication
 double gpsCourseG;					// Global for interthread communication
 double gpsSpeedG;					// Global for interthread communication
 
+char data[100] = "";					// Global for datatransfer over tcp
+char *dataP = data;
+char cmd[50] = "";					
+char *cmdP = cmd;
+
+double Kp = 1.0;						// Global regulator parameters
+double Kd = 0.5;
+double Ki = 0.05;
+double Km = 0.0;
 
 #define SIZE 256
 
@@ -81,6 +91,7 @@ int main() {
 	double wDot = 0;
 	double cmdIncDec = 0;
 	double knobIncDec = 0;
+	double tcpIncDec = 0;
 	int redLed = 27;
 	int greenLed = 5;
 	
@@ -88,10 +99,14 @@ int main() {
 
 	// Open log file with date and time as filename
 	curtime = time(NULL);
-	loctime = localtime(&curtime);
+	loctime = localtime(&curtime); 
 	strftime(fname, SIZE, "/home/andbru/autopilot/logs/%F_%T", loctime);
 	printf("Logfile = %s\r\n", fname);
 	fp  = fopen(fname, "w");
+	// Print headline to logfile
+	fprintf(fp, "mode yawCmd rudderSet rudderIs gpsCourse gpsSpeed ");
+	fprintf(fp, "cY cW cWd mY mW mWd ");
+	fprintf(fp, "psid psiTilde rTilde integralPsiTilde rudderMoment tauFF \n");
 	
 	// Start the second thread with gyro compass	
 	if((rc2 = pthread_create(&th2, NULL, &compass, NULL))) printf("No thread #2 created\\n");
@@ -163,6 +178,10 @@ int main() {
 					yawCmd += cmdIncDec;
 					cmdIncDec = 0;
 				}
+				if(tcpIncDec != 0) {
+					yawCmd += tcpIncDec;
+					tcpIncDec = 0;
+				}
 				break;	
 			case 7:
 				yawCmd = yawIs;
@@ -193,7 +212,8 @@ int main() {
 				mWd = madgwickG.wdot;
 			pthread_mutex_unlock(&mutex1);
 			// Print global variables to logfile
-			//fprintf(fp, "%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\n", mode , yawCmd, rudderSet, rudderIs, cY, cW, cWd, mY, mW, mWd, gpsCourse, gpsSpeed);
+			fprintf(fp, "%d  %f  %f  %f  %f  %f ", mode , yawCmd, rudderSet, rudderIs, gpsCourse, gpsSpeed);
+			fprintf(fp, "%f  %f  %f  %f  %f  %f ", cY, cW, cWd, mY, mW, mWd);
 			
 			//  Simulate behaviour according to rudderSet
 			struct fusionResult sim;
@@ -220,6 +240,33 @@ int main() {
 			// Call regulator
 			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot);
 			
+			pthread_mutex_lock(&mutexTcp);		// read/write to globals thread safe
+				// Check for command over tcp			
+				if(strcmp(cmdP, "") != 0) {
+					char *tokP = strtok(cmdP, ",");
+					double dMode = atoi(tokP);
+					if(dMode != 0) mode = dMode;			// No change in mode is indicated by the value zero
+					tokP = strtok(NULL, ",");
+					tcpIncDec = atof(tokP);
+					tokP = strtok(NULL, ",");
+					double dKp = atof(tokP);
+					Kp += dKp;
+					tokP = strtok(NULL, ",");
+					double dKd = atof(tokP);
+					Kd += dKd;
+					tokP = strtok(NULL, ",");
+					double dKi = atof(tokP);
+					Ki += dKi;
+					tokP = strtok(NULL, ",");
+					double dKm = atof(tokP);
+					Km += dKm;					
+					printf ("%f  %f  %f  %f  %f\r\n",  tcpIncDec, dKp, dKd, dKi, dKm);
+					strcpy(cmdP,  "");
+				}
+				// Update data for tcp transfer
+				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f ", mode, yawCmd, yawIs, rudderPID, Kp, Kd, Ki, Km);
+			pthread_mutex_unlock(&mutexTcp);
+	
 			if(mode == 0) { digitalWrite(greenLed, LOW); digitalWrite(redLed, LOW);}	//Light up the Led's
 			if(mode == 1) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, LOW);}
 			if(mode == 2) { digitalWrite(greenLed, LOW); digitalWrite(redLed, HIGH);}
@@ -295,9 +342,8 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	static double rudderMoment = 0;	// Regulator output
 	static double tauFF = 0;		// Feed forward of commands
 	
-	// Print values from last itteration to log file and console
-	fprintf(fp, "%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\n", mode , yawCmd, psid, yawIs, w, wDot, psiTilde, rTilde, integralPsiTilde, rudderMoment, tauFF);
-	printf("%d  %f  %f  %f  %f  %f  %f  %f  %f  %f  %f\r\n", mode , yawCmd, psid, yawIs, w, wDot, psiTilde, rTilde, integralPsiTilde, rudderMoment, tauFF);
+	// Print values from last itteration to log file
+	fprintf(fp, "%f  %f  %f  %f  %f  %f \n",  psid, psiTilde, rTilde, integralPsiTilde, rudderMoment, tauFF);
 	
 	// Only run setpoint limitation and PID reg when heading hold (mode == 2)
 	if(mode == 2) {
@@ -325,26 +371,7 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	
 		rTilde = w -rd;		// Diff in angular rate
 	
-		static double wb = 1.0;
-		static double alfa = 25;
 		double m = Tnomoto / Knomoto;
-		double wn = 1.56 * wb;
-		double Km;
-		double Kp;
-		double Kd;
-		double Ki;
-		// If true - automatic parameter calculation from wb and alfa
-		if(false) {
-			Km = alfa / 100 * m;
-			Kp = (m + Km) * wn * wn;
-			Kd = 2 * 1 * wn *(m + Km) - 1/ Knomoto;
-			Ki = wn / 10 * Kp;
-		} else {
-			Km = 0;
-			Kp = 1;
-			Kd = 0.5;
-			Ki = 0.05;
-		}
 		
 		tauFF = (m +Km) * (ad + rd / Tnomoto);
 	
