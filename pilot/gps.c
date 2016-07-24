@@ -52,7 +52,7 @@ bool pollGps(double *course, double *speed) {
 	int noChar = serialDataAvail(hGps);
 	if(noChar>=1) {
 
-	int gpsCount;
+		int gpsCount;
 		for(gpsCount=1; gpsCount<=noChar; gpsCount++) {
 			c = serialGetchar(hGps);	// Read character
 			//printf("%c", c);

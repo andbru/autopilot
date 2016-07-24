@@ -15,6 +15,8 @@
 
 #include "compass.h"
 
+extern int accGyroCount;
+extern int magCount;
 
 // Declaration of file-global variables
 int accGyroHandle;			//  i2c variables
@@ -75,8 +77,6 @@ void *compass() {
 	initMPU9250();
 	
 	int regValue;
-	int magCount = 0;
-	int accGyroCount = 0;
 	bool newData = false;
 	wiringPiI2CWriteReg8(magHandle, 0x0A, 0x11);		//  Initiate mag reading 16-bit output
 	start = micros();

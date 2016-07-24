@@ -55,6 +55,9 @@ double Kd = 0.5;
 double Ki = 0.05;
 double Km = 0.0;
 
+int accGyroCount = 0;				// Global for sensor watchdog
+int magCount = 0;
+
 #define SIZE 256
 
 
@@ -105,7 +108,7 @@ int main() {
 	fp  = fopen(fname, "w");
 	// Print headline to logfile
 	fprintf(fp, "mode yawCmd rudderSet rudderIs gpsCourse gpsSpeed ");
-	fprintf(fp, "cY cW cWd mY mW mWd ");
+	fprintf(fp, "cY cW cWd mY mW mWd accGyroCount magCount ");
 	fprintf(fp, "psid psiTilde rTilde integralPsiTilde rudderMoment tauFF \n");
 	
 	// Start the second thread with gyro compass	
@@ -143,7 +146,7 @@ int main() {
 		int newMode = pollKnob(&mode, &knobIncDec);
 		newMode = newMode;		// Just to scilence compiler warnings
 		
-		// Poll cmd
+		// Poll cmd over ssh
 		if(pollCmd(&mode, &cmdIncDec) < 0) {
 			fclose(fp);
 			return -1;
@@ -211,9 +214,11 @@ int main() {
 				mW = madgwickG.w;
 				mWd = madgwickG.wdot;
 			pthread_mutex_unlock(&mutex1);
-			// Print global variables to logfile
+			// Print global variables to log file
 			fprintf(fp, "%d  %f  %f  %f  %f  %f ", mode , yawCmd, rudderSet, rudderIs, gpsCourse, gpsSpeed);
-			fprintf(fp, "%f  %f  %f  %f  %f  %f ", cY, cW, cWd, mY, mW, mWd);
+			fprintf(fp, "%f  %f  %f  %f  %f  %f %d %d ", cY, cW, cWd, mY, mW, mWd, accGyroCount, magCount);
+			accGyroCount = 0;
+			magCount = 0;
 			
 			//  Simulate behaviour according to rudderSet
 			struct fusionResult sim;
@@ -342,7 +347,7 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	static double rudderMoment = 0;	// Regulator output
 	static double tauFF = 0;		// Feed forward of commands
 	
-	// Print values from last itteration to log file
+	// Apend values from last itteration to log file
 	fprintf(fp, "%f  %f  %f  %f  %f  %f \n",  psid, psiTilde, rTilde, integralPsiTilde, rudderMoment, tauFF);
 	
 	// Only run setpoint limitation and PID reg when heading hold (mode == 2)
