@@ -115,7 +115,7 @@ int main() {
 	if((rc2 = pthread_create(&th2, NULL, &compass, NULL))) printf("No thread #2 created\\n");
 	
 	// Start the third thread with tcp server for user communication	
-	if((rc3 = pthread_create(&th3, NULL, &tcpserver, NULL))) printf("No thread #3 created\\n");
+	if((rc3 = pthread_create(&th3, NULL, &server, NULL))) printf("No thread #3 created\\n");
 	sleep(2);		// Wait for thread to initiate
 	
 	// Initiate hardware
@@ -247,7 +247,7 @@ int main() {
 			
 			pthread_mutex_lock(&mutexTcp);		// read/write to globals thread safe
 				// Check for command over tcp			
-				if(strcmp(cmdP, "") != 0) {
+				if(strcmpNS(cmdP, "") != 0) {
 					char *tokP = strtok(cmdP, ",");
 					double dMode = atoi(tokP);
 					if(dMode != 0) mode = dMode;			// No change in mode is indicated by the value zero

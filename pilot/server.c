@@ -15,6 +15,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "conversion.h"
+#include "server.h"
+
 extern char *dataP;
 extern char *cmdP;
 extern pthread_mutex_t mutexTcp;
@@ -25,7 +28,7 @@ void error(char *msg)
     exit(1);
 }
 
-void *tcpserver() {
+void *server() {
 
 	int sockfd, newsockfd, portno, clilen;
 	char buffer[256];
@@ -67,14 +70,14 @@ void *tcpserver() {
 		//printf("Here is the message: %s\r\n",tokenP);
 	
 		// Check for quit message
-		if (strcmp(tokenP, "q") == 0) {
+		if (strcmpNS(tokenP, "q") == 0) {
 			close(newsockfd);
 			close(sockfd);
 			return 0; 
 		}
 		
 		//Check for data request
-		if(strcmp(tokenP, "$GET") == 0) {
+		if(strcmpNS(tokenP, "$GET") == 0) {
 			pthread_mutex_lock(&mutexTcp);					// Read global data thread safe
 				n = write(newsockfd,dataP, strlen(dataP));
 			pthread_mutex_unlock(&mutexTcp);
@@ -83,7 +86,7 @@ void *tcpserver() {
 		}
 		
 		//Check for set command
-		if(strcmp(tokenP, "$SET") == 0) {
+		if(strcmpNS(tokenP, "$SET") == 0) {
 			
 			// Find the data part
 			tokenP = strtok(NULL, " ");

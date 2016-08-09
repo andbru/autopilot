@@ -18,6 +18,7 @@
 #include <wiringSerial.h>
 
 #include "gps.h"
+#include "conversion.h"
 
 int hGps;		// Handle to serial gps port
 char nmea[100] = "";	// Buffer for nmea-sentences
@@ -89,35 +90,37 @@ bool nmeaOk( double *course, double *speed) {
 	char *param;
 	param = strtok(nmea, s);					// Find first parameter
 	
-	if(strcmp(param, "") == 0) return false;	// Empty string
-	if(strcmp(param, "$GPVTG") == 0) {		// Ceck for "Track made good and speed
+	if(strcmpNS(param, "") == 0) return false;	// Empty string
+	if(strcmpNS(param, "$GPVTG") == 0) {		// Ceck for "Track made good and speed
 		
 		param = strtok(NULL, s);				// Find second parameter, true course
+		if(param == 0) return false;
 		float fCourse;
 		int i = sscanf(param, "%f", &fCourse);	// Cast to float
 		if(i != 1) return false;						// Cast failed
 		*course = fCourse;						// Cast to double
 		
 		param = strtok(NULL, s);				// Find third parameter, "T" as in true
-		if(strcmp(param, "T") == 0) {
+		if(strcmpNS(param, "T") == 0) {
 			
 			// Field #4 for magnetic course empty and not recognized
 
 			param = strtok(NULL, s);			// Check for "M" in field #5
-			if(strcmp(param, "M") == 0) {
+			if(strcmpNS(param, "M") == 0) {
 			
 				param = strtok(NULL, s);				// Field #6, speed SOG
+				if(param == 0) return false;
 				float fSpeed;
 				int i = sscanf(param, "%f", &fSpeed);	// Cast to float
 				if(i != 1) return false;						// Cast failed
 				*speed = fSpeed;							// Cast to double
 			
 				param = strtok(NULL, s);			// Check for "N" in field #7
-				if(strcmp(param, "N") == 0) {
+				if(strcmpNS(param, "N") == 0) {
 				
 					param = strtok(NULL, s);		// Skip field #8, speed in km/h
 					param = strtok(NULL, s);		// Check for "K" in field #9
-					if(strcmp(param, "K") == 0) {
+					if(strcmpNS(param, "K") == 0) {
 					
 						param = strtok(NULL, s);		// Read last four characters
 						
@@ -125,13 +128,13 @@ bool nmeaOk( double *course, double *speed) {
 						str1[0] = param[0];
 						str1[1] = '\0';
 						char str2[2] = "A";
-						if(strcmp(str1, str2) != 0) return false;														
+						if(strcmpNS(str1, str2) != 0) return false;														
 											
 						str1[0] = param[1];				// Check for * before checksum
 						str1[1] = '\0';
 						str2[0] = '*';
 						str2[1] = '\0';
-						if(strcmp(str1, str2) != 0) return false;
+						if(strcmpNS(str1, str2) != 0) return false;
 						
 						char sumStr[3];					// Check check sum vs
 						sumStr[0] = param[2];			// calculated sum first in this function

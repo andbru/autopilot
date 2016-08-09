@@ -358,7 +358,8 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 	int signum; 
 	gsl_permutation * perm = gsl_permutation_alloc(9);		
 	gsl_linalg_LU_decomp (S, perm, &signum);		// Make the LU decomposition of matrix m
-	gsl_linalg_LU_invert (S, perm, Si);				// Invert the matrix
+	gsl_linalg_LU_invert (S, perm, Si);					// Invert the matrix
+	gsl_permutation_free(perm);						// Free up memory to avoid leakage
 	
 	//  Calculate Kalman gain	
 	//  K = P * H' * Si

@@ -1,3 +1,3 @@
 
 //  Function decarations
-void *tcpserver();
+void *server();

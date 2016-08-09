@@ -1,5 +1,11 @@
 
 #include<math.h>
+#include<string.h>
+
+int strcmpNS(char *p1, char *p2) {	//strcmp NULL Safe
+	if(p1 == 0 || p2 == 0) return -1;
+	return strcmp(p1, p2);
+}
 
 double radtodeg(double angel) {
 	return (angel * 180 / M_PI);
