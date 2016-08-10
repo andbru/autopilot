@@ -160,6 +160,7 @@ void *compass() {
 				cavallo = updateCavallo(ax, -ay, -az, gx, -gy, -gz, -mx, my, mz, deltaT);		// filter
 
 				madgwick = updateMadgwick(ax, ay, az, gx, gy,	gz, my, mx, -mz, deltaT);		// filter
+				madgwick.yaw = 158;
 				cCount = 0;
 			}
 			cCount--;
