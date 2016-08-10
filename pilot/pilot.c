@@ -134,8 +134,8 @@ int main() {
 	for (;;) {
 		
 		//  Poll rudder angel every milli second and filter
-		int newAngel = pollRudder(&rudderIs);
-		if(newAngel) {			
+		int newAngle = pollRudder(&rudderIs);
+		if(newAngle) {			
 			gettimeofday(&t1, NULL);		// dt = time between iterations
 			double dt = elapsed(t1, t0);
 			dt = dt;		// Scilence compiler warnings
@@ -224,7 +224,7 @@ int main() {
 			struct fusionResult sim;
 			sim = simulate(rudderSet, 0.1);
 			
-			switch(1) {				// Chose sensor algorithm or simulation
+			switch(2) {				// Chose sensor algorithm or simulation
 				case 1:				// Madgwick
 					yawIs = mY;		
 					w = mW;
@@ -269,7 +269,8 @@ int main() {
 					strcpy(cmdP,  "");
 				}
 				// Update data for tcp transfer
-				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f ", mode, yawCmd, yawIs, rudderPID, Kp, Kd, Ki, Km);
+				//sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f ", mode, yawCmd, yawIs, rudderPID, Kp, Kd, Ki, Km);
+				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f ", mode, mY, yawIs, rudderPID, Kp, Kd, Ki, Km);
 			pthread_mutex_unlock(&mutexTcp);
 	
 			if(mode == 0) { digitalWrite(greenLed, LOW); digitalWrite(redLed, LOW);}	//Light up the Led's

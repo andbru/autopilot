@@ -61,7 +61,7 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 	static gsl_matrix * K;
 	static gsl_matrix * I;
 		
-	if(firstTime) {	//  Initialize matrices and vectors first time updateWatson() is called
+	if(firstTime) {	//  Initialize matrices and vectors first time updateCavallo() is called
 		 firstTime = false;
 		 
 		 Q = gsl_matrix_calloc(7, 7);

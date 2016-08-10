@@ -155,13 +155,17 @@ void *compass() {
 					 gz*M_PI/180, my, mx, -mz, deltaT);		// align magnetometer
 			*/
 			
-			cavallo = updateCavallo(ax, -ay, -az, gx, -gy, -gz, -mx, my, mz, deltaT);		// filter
+			static int cCount = 1000;		// wait for mpu to stabilize to avoid nan return values
+			if(cCount <= 0) {
+				cavallo = updateCavallo(ax, -ay, -az, gx, -gy, -gz, -mx, my, mz, deltaT);		// filter
 
-			madgwick = updateMadgwick(ax, ay, az, gx, gy,	gz, my, mx, -mz, deltaT);		// filter
-
+				madgwick = updateMadgwick(ax, ay, az, gx, gy,	gz, my, mx, -mz, deltaT);		// filter
+				cCount = 0;
+			}
+			cCount--;
 		}
 		
-		// Transfer values to global variables thred safe and get gps values
+		// Transfer values to global variables thread safe and get gps values
 		extern pthread_mutex_t mutex1;
 		extern int counter;
 		extern struct fusionResult cavalloG;
@@ -277,6 +281,10 @@ void initMPU9250(void) {
 	printf("Correction factor mag x: %f \n", magFactoryCal[0]);
 	printf("Correction factor mag y: %f \n", magFactoryCal[1]);
 	printf("Correction factor mag z: %f \n", magFactoryCal[2]);
+	
+	ts.tv_sec = 0;							//  Delay 2 s
+	ts.tv_nsec = 2000000000;
+	nanosleep(&ts, NULL);
 	
 	printf("\n*******************    End initMPU9250    *********************\n\n");
 	

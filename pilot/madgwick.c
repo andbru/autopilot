@@ -39,7 +39,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	static double gbiasy = 0;
 	static double gbiasz = 0;
 
-	static double beta = 0.5;			//  Best compromise = 0.2
+	static double beta = 0.1;			//  Best compromise = 0.2
 	//static double beta = 0.62;			//  Chris Winer
 	//static double beta = 0.041;		//  Madgwick report
 	static double zeta = 0.0030;		//  Madgwick report
