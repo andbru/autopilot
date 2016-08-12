@@ -50,9 +50,9 @@ char *dataP = data;
 char cmd[50] = "";					
 char *cmdP = cmd;
 
-double Kp = 1.0;						// Global regulator parameters
+double Kp = 0.7;						// Global regulator parameters
 double Kd = 0.5;
-double Ki = 0.05;
+double Ki = 0.04;
 double Km = 0.0;
 
 int accGyroCount = 0;				// Global for sensor watchdog
@@ -122,7 +122,7 @@ int main() {
 	initRudder();
 	initKnob();
 	initGps();
-	initCmd();
+	//initCmd();		// Uncomment if controlled from keyboard or over SSH
 	
 	// mode = 0 startup, = 1 standby, = 2 heading hold, = 7 rudder control
 	mode = 1;
@@ -147,10 +147,10 @@ int main() {
 		newMode = newMode;		// Just to scilence compiler warnings
 		
 		// Poll cmd over ssh
-		if(pollCmd(&mode, &cmdIncDec) < 0) {
+		/*if(pollCmd(&mode, &cmdIncDec) < 0) {	// Uncomment if controlled from keyboard or over SSH
 			fclose(fp);
 			return -1;
-		}
+		}	*/
 		
 		// Poll gps
 		double gpsCourse;
@@ -269,8 +269,8 @@ int main() {
 					strcpy(cmdP,  "");
 				}
 				// Update data for tcp transfer
-				//sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f ", mode, yawCmd, yawIs, rudderPID, Kp, Kd, Ki, Km);
-				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f ", mode, mY, yawIs, rudderPID, Kp, Kd, Ki, Km);
+				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f ", mode, yawCmd, yawIs, rudderPID, Kp, Kd, Ki, Km);
+
 			pthread_mutex_unlock(&mutexTcp);
 	
 			if(mode == 0) { digitalWrite(greenLed, LOW); digitalWrite(redLed, LOW);}	//Light up the Led's
