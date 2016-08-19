@@ -54,6 +54,7 @@ void *compass() {
 
 	struct fusionResult madgwick;
 	struct fusionResult cavallo;
+	extern pthread_mutex_t mutex1;
 	
 	int16_t axRaw = 0;
 	int16_t ayRaw = 0;
@@ -88,6 +89,9 @@ void *compass() {
 	
 		// Check for new AccGyro data
 		regValue = wiringPiI2CReadReg8(accGyroHandle, 58);
+		pthread_mutex_lock(&mutex1);
+			accGyroCount++;
+		pthread_mutex_unlock(&mutex1);
 		if(regValue & 0x01) {
 		//printf("%lu   %#x  ",  micros() - tAccGyro, ii);
 			tAccGyro = micros();
@@ -95,12 +99,17 @@ void *compass() {
 			accGyroRead();
 			t = t;		//  Avoid warning when print below is not used
 			//printf("%lu\n", micros() - t);
-			accGyroCount++;
+			pthread_mutex_lock(&mutex1);
+				accGyroCount = 0;
+			pthread_mutex_unlock(&mutex1);
 			newData = true;
 		}
 		
 		// Check for new Mag data
 		regValue = wiringPiI2CReadReg8(magHandle, 0x02);
+		pthread_mutex_lock(&mutex1);
+			magCount++;
+		pthread_mutex_unlock(&mutex1);
 		if(regValue & 0x01) {
 		//printf("%lu              %lu  %#x   ",  micros() - tAccGyro, micros() - tMag, ii);
 			tMag = micros();
@@ -109,7 +118,9 @@ void *compass() {
 			wiringPiI2CWriteReg8(magHandle, 0x0A, 0x11);		//  Initiate new mag reading
 			t = t;		//  Avoid warning when print below is not used			
 			//printf(" %lu\n", micros() - t);										//  16 bit output
-			magCount++;
+			pthread_mutex_lock(&mutex1);
+				magCount = 0;
+			pthread_mutex_unlock(&mutex1);
 			newData = true;
 		}
 		
@@ -167,7 +178,6 @@ void *compass() {
 		}
 		
 		// Transfer values to global variables thread safe and get gps values
-		extern pthread_mutex_t mutex1;
 		extern int counter;
 		extern struct fusionResult cavalloG;
 		extern struct fusionResult madgwickG;
