@@ -63,7 +63,7 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 		
 	if(firstTime) {	//  Initialize matrices and vectors first time updateCavallo() is called
 		 firstTime = false;
-		 
+		 /*
 		 Q = gsl_matrix_calloc(7, 7);
 		 double kq = 1e-6;
 		 double kw = 1e-3;
@@ -82,6 +82,29 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 		 gsl_matrix_set(R, 3, 3, 2e-5);
 		 gsl_matrix_set(R, 4, 4, 2e-5);
 		 gsl_matrix_set(R, 5, 5, 2e-5);
+		 gsl_matrix_set(R, 6, 6, 0.001);
+		 gsl_matrix_set(R, 7, 7, 0.001);
+		 gsl_matrix_set(R, 8, 8, 0.001);
+		 */
+		 
+		 Q = gsl_matrix_calloc(7, 7);
+		 double kq = 1e-5;
+		 double kw = 1e-5;
+		 gsl_matrix_set(Q, 0, 0, kq);
+		 gsl_matrix_set(Q, 1, 1, kq);
+		 gsl_matrix_set(Q, 2, 2, kq);
+		 gsl_matrix_set(Q, 3, 3, kq);
+		 gsl_matrix_set(Q, 4, 4, kw);
+		 gsl_matrix_set(Q, 5, 5, kw);
+		 gsl_matrix_set(Q, 6, 6, kw);
+		 
+		 R = gsl_matrix_calloc(9, 9);
+		 gsl_matrix_set(R, 0, 0, 1e-4);
+		 gsl_matrix_set(R, 1, 1, 1e-4);
+		 gsl_matrix_set(R, 2, 2, 1e-4);
+		 gsl_matrix_set(R, 3, 3, 2e-4);
+		 gsl_matrix_set(R, 4, 4, 2e-4);
+		 gsl_matrix_set(R, 5, 5, 2e-4);
 		 gsl_matrix_set(R, 6, 6, 0.001);
 		 gsl_matrix_set(R, 7, 7, 0.001);
 		 gsl_matrix_set(R, 8, 8, 0.001);

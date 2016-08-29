@@ -55,7 +55,7 @@ double Kd = 0.5;
 double Ki = 0.04;
 double Km = 0.0;
 
-int accGyroCount = 0;				// Global for sensor watchdog
+int accGyroCount = 0;				// Global for sensor reading freq.
 int magCount = 0;
 
 #define SIZE 256
@@ -217,8 +217,6 @@ int main() {
 			// Print global variables to log file
 			fprintf(fp, "%d  %f  %f  %f  %f  %f ", mode , yawCmd, rudderSet, rudderIs, gpsCourse, gpsSpeed);
 			fprintf(fp, "%f  %f  %f  %f  %f  %f %d %d ", cY, cW, cWd, mY, mW, mWd, accGyroCount, magCount);
-			accGyroCount = 0;
-			magCount = 0;
 			
 			//  Simulate behaviour according to rudderSet
 			struct fusionResult sim;
@@ -271,6 +269,8 @@ int main() {
 				// Update data for tcp transfer
 				//sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, yawCmd, yawIs, rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
 				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, mY, yawIs, rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
+				accGyroCount = 0;
+				magCount = 0;
 
 			pthread_mutex_unlock(&mutexTcp);
 	

@@ -89,9 +89,6 @@ void *compass() {
 	
 		// Check for new AccGyro data
 		regValue = wiringPiI2CReadReg8(accGyroHandle, 58);
-		pthread_mutex_lock(&mutex1);
-			accGyroCount++;
-		pthread_mutex_unlock(&mutex1);
 		if(regValue & 0x01) {
 		//printf("%lu   %#x  ",  micros() - tAccGyro, ii);
 			tAccGyro = micros();
@@ -100,16 +97,13 @@ void *compass() {
 			t = t;		//  Avoid warning when print below is not used
 			//printf("%lu\n", micros() - t);
 			pthread_mutex_lock(&mutex1);
-				accGyroCount = 0;
+				accGyroCount++;
 			pthread_mutex_unlock(&mutex1);
 			newData = true;
 		}
 		
 		// Check for new Mag data
 		regValue = wiringPiI2CReadReg8(magHandle, 0x02);
-		pthread_mutex_lock(&mutex1);
-			magCount++;
-		pthread_mutex_unlock(&mutex1);
 		if(regValue & 0x01) {
 		//printf("%lu              %lu  %#x   ",  micros() - tAccGyro, micros() - tMag, ii);
 			tMag = micros();
@@ -119,7 +113,7 @@ void *compass() {
 			t = t;		//  Avoid warning when print below is not used			
 			//printf(" %lu\n", micros() - t);										//  16 bit output
 			pthread_mutex_lock(&mutex1);
-				magCount = 0;
+				magCount++;
 			pthread_mutex_unlock(&mutex1);
 			newData = true;
 		}
@@ -170,7 +164,7 @@ void *compass() {
 			if(cCount <= 0) {
 				//cavallo = updateCavallo(ax, -ay, -az, gx, -gy, -gz, -mx, my, mz, deltaT);		// filter
 
-				cavallo = updateCavallo(ax, ay, az, gx, gy, gz, my, mx, -mz, deltaT);	
+				//cavallo = updateCavallo(ax, ay, az, gx, gy, gz, my, mx, -mz, deltaT);	
 				
 				madgwick = updateMadgwick(ax, ay, az, gx, gy,	gz, my, mx, -mz, deltaT);		// filter
 
@@ -239,13 +233,21 @@ void initMPU9250(void) {
 	ts.tv_sec = 0;							//  Delay 200 ms
 	ts.tv_nsec = 200000000;
 	nanosleep(&ts, NULL);
-	
+	/*
 	//  Configure Gyro and Accelerometer, reg 0x1A, disable FSYNC, DLPF_CFG 2:0 = 010 = 0x2 gives delay
 	//  3.9 ms ~250 Hz reading frequency, 1kHz saple rate
 	i = wiringPiI2CWriteReg8(accGyroHandle, 0x1A, 0x02);	
 	printf("CONFIG       %#x ~250 Hz reading frequency\n", i);
 	i = wiringPiI2CWriteReg8(accGyroHandle, 0x19, 0x03);				//  SMPLRT_DIV 1 kHz / (1 + 3) => 0x03
 	printf("SMPLRT_DIV   %#x ~250 Hz reading frequency\n", i);
+	*/
+	
+	//  Configure Gyro and Accelerometer, reg 0x1A, disable FSYNC, DLPF_CFG 2:0 = 000 = 0x0 gives delay
+	//  0,97 ms ~1000 Hz reading frequency, 1kHz saple rate
+	i = wiringPiI2CWriteReg8(accGyroHandle, 0x1A, 0x00);	
+	printf("CONFIG       %#x ~1000 Hz reading frequency\n", i);
+	i = wiringPiI2CWriteReg8(accGyroHandle, 0x19, 0x00);				//  SMPLRT_DIV 8 kHz / (1 + 0) => 0x00
+	printf("SMPLRT_DIV   %#x ~1000 Hz reading frequency\n", i);
 	
 	uint8_t c = wiringPiI2CReadReg8(accGyroHandle, 0x1B);			//  GYRO_CONFIG, clear selftest, Full Scale 250 deg/s
 	i = wiringPiI2CWriteReg8(accGyroHandle, 0x1B, c & 0x04);
