@@ -90,8 +90,11 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 		 gsl_matrix_set_identity(P);
 		 
 		 x = gsl_vector_calloc(7);
-		 gsl_vector_set(x, 0, 1.0);
-		 
+		 //gsl_vector_set(x, 0, 1.0);
+		double initPsi = atan2(my, mx);
+		gsl_vector_set(x, 0, cos(initPsi / 2));
+		gsl_vector_set(x, 3, -sin(initPsi / 2));
+	
 		 z = gsl_vector_calloc(9);		 
 		 F = gsl_matrix_calloc(7, 7);		 
 		 C = gsl_matrix_calloc(7, 7);		 
@@ -399,13 +402,17 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 	// Numerical differentiation to get wdot
 	static double Tw = 0.25;
 	static double xw = 0;
-	xw = dt / Tw * (-xw + wz) + xw;
-	double wdot = 1 / Tw * (-xw + wz);
+	xw = dt / Tw * (-xw + wzh) + xw;
+	double wdot = 1 / Tw * (-xw + wzh);
 	
 	//  Assign return values
-	ret.wdot = radtodeg(wdot);	
-	ret.w = radtodeg(wzh);
-	ret.yaw = deg0to360(radtodeg(atan2(2*(q0*q3+q1*q2), 1-2*(q2*q2+q3*q3))));	//  Return value in deg (0 to 360 deg)
+	ret.wdot = radtodeg(-wdot);	
+	ret.w = radtodeg(-wzh);
+	//ret.yaw = deg0to360(-radtodeg(atan2(2*(q0*q3+q1*q2), 1-2*(q2*q2+q3*q3))));	//  Return value in deg (0 to 360 deg)
+	
+	ret.yaw = deg0to360(-radtodeg(atan2(2*(-q0*q3+q1*q2), -1+2*(q0*q0+q1*q1))));	//  Return value in deg (0 to 360 deg)
+
+	printf("%f %f %f %f %f\n", atan2(-my, mx), q0, q1, q2, q3);
 
 	return ret;
 }

@@ -73,7 +73,8 @@ int pollRudder(double *angel) {
 	//  uZeroDeg = voltage at 0 deg => m = - k * uZeroDeg = - degPerVolt * uZeroDeg
 	//  *******************************************************************************************
 	static double degPerVolt = 36.49 ;
-	static double uZeroDeg = 1.756;
+	//static double uZeroDeg = 1.756;
+	static double uZeroDeg = 1.848;
 	
 	// Check DRDY#
 	if (digitalRead(6) == 0) {
@@ -102,9 +103,9 @@ int pollRudder(double *angel) {
 void actuateRudder(double rudderSet, double rudderIs) {
 	double rudderBound = 10.0;
 	// Constants for Florin algorithm
-	double db = 0.3;			// Dead band (deg)
-	double slow = 0.7;		// Slow speed interval (deg)
-	double pFast = 800;		// Max 1024
+	double db = 0.5;			// Dead band (deg)
+	double slow = 1.5;		// Slow speed interval (deg)
+	double pFast = 500;		// Max 1024
 	double pSlow = 400;
 	
 	int out = 0;

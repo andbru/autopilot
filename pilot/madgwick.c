@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <wiringPi.h>
 #include <math.h>
+#include <stdbool.h>
 
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_cblas.h>
@@ -39,7 +40,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	static double gbiasy = 0;
 	static double gbiasz = 0;
 
-	static double beta = 0.1;			//  Best compromise = 0.2
+	static double beta = 0.5;			//  Best compromise = 0.2
 	//static double beta = 0.62;			//  Chris Winer
 	//static double beta = 0.041;		//  Madgwick report
 	static double zeta = 0.0030;		//  Madgwick report
@@ -50,6 +51,14 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	double qDot1, qDot2, qDot3, qDot4;
     
 	double gerrx, gerry, gerrz;        // gyro bias error
+	
+	static bool firstTime = true;
+	if (firstTime) {
+		firstTime = false;
+		double initPsi = atan2(my, mx);
+		q1 = cos(initPsi / 2);
+		q4 = -sin(initPsi / 2);
+	}
     
 	// Auxiliary variables to avoid repeated arithmetic
 	double _2q1mx;
@@ -172,8 +181,12 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	q3 = q3 * norm;
 	q4 = q4 * norm;
 
+	//printf("%f %f %f %f %f\n", atan2(my, mx), q1, q2, q3, q4);
+	
 	//  Change to positive clockwise and downwards
 	double yaw = deg0to360(- radtodeg( atan2(2*(q1*q4+q2*q3), 1-2*(q3*q3+q4*q4))));		//  Return value in deg (0 to 360 deg)
+	
+	//double yaw = deg0to360(- radtodeg( atan2(2*(-q1*q4+q2*q3), -1+2*(q1*q1+q2*q2))));		//  Return value in deg (0 to 360 deg)
 	double w = -gz;
 	
 	// LP-filter for w

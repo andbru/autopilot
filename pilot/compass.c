@@ -168,8 +168,10 @@ void *compass() {
 			
 			static int cCount = 1000;		// wait for mpu to stabilize to avoid nan return values
 			if(cCount <= 0) {
-				cavallo = updateCavallo(ax, -ay, -az, gx, -gy, -gz, -mx, my, mz, deltaT);		// filter
+				//cavallo = updateCavallo(ax, -ay, -az, gx, -gy, -gz, -mx, my, mz, deltaT);		// filter
 
+				cavallo = updateCavallo(ax, ay, az, gx, gy, gz, my, mx, -mz, deltaT);	
+				
 				madgwick = updateMadgwick(ax, ay, az, gx, gy,	gz, my, mx, -mz, deltaT);		// filter
 
 				cCount = 0;
