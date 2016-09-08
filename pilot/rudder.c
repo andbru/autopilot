@@ -105,7 +105,7 @@ void actuateRudder(double rudderSet, double rudderIs) {
 	// Constants for Florin algorithm
 	double db = 0.5;			// Dead band (deg)
 	double slow = 1.5;		// Slow speed interval (deg)
-	double pFast = 500;		// Max 1024
+	double pFast = 800;		// Max 1024
 	double pSlow = 400;
 	
 	int out = 0;

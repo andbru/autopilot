@@ -268,7 +268,7 @@ int main() {
 				}
 				// Update data for tcp transfer
 				//sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, yawCmd, yawIs, rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
-				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, mY, yawIs, rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
+				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, yawIs, mY,  rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
 				accGyroCount = 0;
 				magCount = 0;
 
