@@ -7,6 +7,7 @@
 #include <wiringPi.h>
 #include <wiringPiI2C.h>
 #include <pthread.h>
+#include <unistd.h>
 
 //#include "global.h"
 #include "madgwick.h"
@@ -17,6 +18,7 @@
 
 extern int accGyroCount;
 extern int magCount;
+extern FILE *fp;	
 
 // Declaration of file-global variables
 int accGyroHandle;			//  i2c variables
@@ -76,6 +78,7 @@ void *compass() {
 	double mz = 0;
 	
 	initMPU9250();
+	sleep(2);		// Wait for mpu to stabilize
 	
 	int regValue;
 	bool newData = false;
@@ -133,18 +136,55 @@ void *compass() {
 			myRaw = myRead;
 			mzRaw = mzRead;
 			//printf("%d  %d  %d \n", mxRaw, myRaw, mzRaw);
-			ax = (double)axRaw * aRes;
-			ay = (double)ayRaw * aRes;
-			az = (double)azRaw * aRes;
+			double ax0 = (double)axRaw * aRes;
+			double ay0 = (double)ayRaw * aRes;
+			double az0 = (double)azRaw * aRes;
 			//printf("%f  %f  %f \n", ax, ay, az);
 			gx = (double)gxRaw * gRes;		//  All gyro measurements in deg per second
 			gy = (double)gyRaw * gRes;
 			gz = (double)gzRaw * gRes;
 			//printf("%f  %f  %f \n", gx, gy, gz);
-			mx = (double)mxRaw * mRes * magFactoryCal[0];	
-			my = (double)myRaw * mRes * magFactoryCal[1];
-			mz = (double)mzRaw * mRes * magFactoryCal[2];
+			double mx0 = (double)mxRaw * mRes * magFactoryCal[0];	
+			double my0 = (double)myRaw * mRes * magFactoryCal[1];
+			double mz0 = (double)mzRaw * mRes * magFactoryCal[2];
 			//printf("%f  %f  %f \n", mx, my, mz);
+			
+			// Adjust for calibration and normalize w=U*(v-c)
+			double Uacc11 = 1.1322;
+			double Uacc12 = 0.025;
+			double Uacc13 = -0.0155;
+			double Uacc22 = 1.1651;
+			double Uacc23 = 0.0422;
+			double Uacc33 = 1.1151;
+			double cAcc1 = 0.0069;
+			double cAcc2 = -0.0062;
+			double cAcc3 = -0.0277;
+			ax = Uacc11 * (ax0 -cAcc1) + Uacc12 * (ay0 -cAcc2) + Uacc13 * (az0 -cAcc3);
+			ay = Uacc22 * (ay0 -cAcc2) + Uacc23 * (az0 -cAcc3);
+			az = Uacc33 * (az0 -cAcc3);
+			double Umag11 = 0.0020;
+			double Umag12 = -0.0001;
+			double Umag13 = 0;
+			double Umag22 = 0.0020;
+			double Umag23 = 0;
+			double Umag33 = 0.0020;
+			double cMag1 = 116.5123;
+			double cMag2 = 74.4579;
+			double cMag3 = -197.6982;
+			mx = Umag11 * (mx0 -cMag1) + Umag12 * (my0 -cMag2) + Umag13 * (mz0 -cMag3);
+			my = Umag22 * (my0 -cMag2) + Umag23 * (mz0 -cMag3);
+			mz = Umag33 * (mz0 -cMag3);			
+			
+			/*
+			// log of data for calibration (not thread safe)
+			static int prCount = 100;
+			prCount--;
+			if(prCount <= 0) {
+				fprintf(fp, "%f  %f  %f  %f  %f %f \n", ax , ay, az, mx, my, mz);
+				printf("%f  %f  %f  %f  %f %f \n", ax , ay, az, mx, my, mz);
+				prCount = 100;
+			}
+			*/
 
 			double deltaT = (double)((micros() - lastT) / 1000000.0);
 			lastT = micros();
@@ -162,13 +202,14 @@ void *compass() {
 			
 			static int cCount = 1000;		// wait for mpu to stabilize to avoid nan return values
 			if(cCount <= 0) {
-				cavallo = updateCavallo(ax, -ay, -az, gx, -gy, -gz, -mx, my, mz, deltaT);		// filter
+				cavallo = updateCavallo(ax, -ay, -az, gx, -gy, -gz, -mx, my, mz, deltaT);		// filter 9 sep
+				//cavallo = updateCavallo(ax, -ay, -az, gx, -gy, -gz, my, -mx, mz, deltaT);		// filter
 				
 				//cavallo = updateCavallo(ay, ax, -az, gy, gx, -gz, mx, my, mz, deltaT);
 				
 				//cavallo = updateCavallo(ax, ay, az, gx, gy, gz, my, mx, -mz, deltaT);	
 				
-				madgwick = updateMadgwick(ax, ay, az, gx, gy,	gz, my, mx, -mz, deltaT);		// filter
+				madgwick = updateMadgwick(ax, ay, az, gx, gy, gz, my, mx, -mz, deltaT);		// filter
 
 				cCount = 0;
 			}

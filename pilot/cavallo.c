@@ -88,8 +88,8 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 		 */
 		 
 		 Q = gsl_matrix_calloc(7, 7);
-		 double kq = 3e-6;
-		 double kw = 1e-5;
+		 double kq = 5e-6;
+		 double kw = 1e-3;
 		 gsl_matrix_set(Q, 0, 0, kq);
 		 gsl_matrix_set(Q, 1, 1, kq);
 		 gsl_matrix_set(Q, 2, 2, kq);
@@ -99,15 +99,15 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 		 gsl_matrix_set(Q, 6, 6, kw);
 		 
 		 R = gsl_matrix_calloc(9, 9);
-		 gsl_matrix_set(R, 0, 0, 3e-5);
-		 gsl_matrix_set(R, 1, 1, 3e-5);
-		 gsl_matrix_set(R, 2, 2, 3e-3);
-		 gsl_matrix_set(R, 3, 3, 4e-3);
-		 gsl_matrix_set(R, 4, 4, 4e-3);
-		 gsl_matrix_set(R, 5, 5, 4e-5);
-		 gsl_matrix_set(R, 6, 6, 0.002);
-		 gsl_matrix_set(R, 7, 7, 0.002);
-		 gsl_matrix_set(R, 8, 8, 0.002);
+		 gsl_matrix_set(R, 0, 0, 0.001);
+		 gsl_matrix_set(R, 1, 1, 0.001);
+		 gsl_matrix_set(R, 2, 2, 0.001);
+		 gsl_matrix_set(R, 3, 3, 0.1);
+		 gsl_matrix_set(R, 4, 4, 0.1);
+		 gsl_matrix_set(R, 5, 5, 0.1);
+		 gsl_matrix_set(R, 6, 6, 0.001);
+		 gsl_matrix_set(R, 7, 7, 0.001);
+		 gsl_matrix_set(R, 8, 8, 0.001);
 		 
 		 P = gsl_matrix_calloc(7, 7);
 		 gsl_matrix_set_identity(P);
@@ -433,7 +433,7 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 	ret.w = radtodeg(wzh);
 	//ret.yaw = deg0to360(radtodeg(atan2(2*(q0*q3+q1*q2), 1-2*(q2*q2+q3*q3))));	//  Return value in deg (0 to 360 deg)
 	
-	ret.yaw = deg0to360(-radtodeg(atan2(2*(-q0*q3+q1*q2), -1+2*(q0*q0+q1*q1))));	//  Return value in deg (0 to 360 deg)
+	ret.yaw = deg0to360(90 -radtodeg(atan2(2*(-q0*q3+q1*q2), -1+2*(q0*q0+q1*q1))));	//  Return value in deg (0 to 360 deg)
 
 	//printf("%f %f %f %f %f\n", atan2(-my, mx), q0, q1, q2, q3);
 

@@ -40,7 +40,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	static double gbiasy = 0;
 	static double gbiasz = 0;
 
-	static double beta = 0.05;			//  Best compromise = 0.2
+	static double beta = 0.4;			//  Best compromise = 0.2
 	//static double beta = 0.62;			//  Chris Winer
 	//static double beta = 0.041;		//  Madgwick report
 	static double zeta = 0.0030;		//  Madgwick report
@@ -184,7 +184,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	//printf("%f %f %f %f %f\n", atan2(my, mx), q1, q2, q3, q4);
 	
 	//  Change to positive clockwise and downwards
-	double yaw = deg0to360(- radtodeg( atan2(2*(q1*q4+q2*q3), 1-2*(q3*q3+q4*q4))));		//  Return value in deg (0 to 360 deg)
+	double yaw = deg0to360(90 - radtodeg( atan2(2*(q1*q4+q2*q3), 1-2*(q3*q3+q4*q4))));		//  Return value in deg (0 to 360 deg)
 	
 	//double yaw = deg0to360(- radtodeg( atan2(2*(-q1*q4+q2*q3), -1+2*(q1*q1+q2*q2))));		//  Return value in deg (0 to 360 deg)
 	double w = -gz;

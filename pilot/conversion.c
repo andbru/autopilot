@@ -7,16 +7,16 @@ int strcmpNS(char *p1, char *p2) {	//strcmp NULL Safe
 	return strcmp(p1, p2);
 }
 
-double radtodeg(double angel) {
-	return (angel * 180 / M_PI);
+double radtodeg(double angle) {
+	return (angle * 180 / M_PI);
 }
 
-double degtorad(double angel) {
-	return (angel / 180 * M_PI);
+double degtorad(double angle) {
+	return (angle / 180 * M_PI);
 }
 
-double deg0to360(double angel) {
-	double res = angel;
+double deg0to360(double angle) {
+	double res = angle;
 	
 	while(res < 0 || res >= 360) {
 		if(res < 0) res += 360;
@@ -25,8 +25,8 @@ double deg0to360(double angel) {
 	return res;
 }
 
-double deg180to180(double angel) {
-	double res = angel;
+double deg180to180(double angle) {
+	double res = angle;
 	
 	while(res <= -180 || res > 180) {
 		if(res <= -180) res += 360;
@@ -35,8 +35,8 @@ double deg180to180(double angel) {
 	return res;
 }
 
-double rad0to2pi(double angel) {
-	double res = angel;
+double rad0to2pi(double angle) {
+	double res = angle;
 	
 	while(res < 0 || res >= 2 * M_PI) {
 		if(res < 0) res += 2 * M_PI;
@@ -45,8 +45,8 @@ double rad0to2pi(double angel) {
 	return res;
 }
 
-double radpitopi(double angel) {
-	double res = angel;
+double radpitopi(double angle) {
+	double res = angle;
 	
 	while(res <= -M_PI || res > M_PI) {
 		if(res <= -M_PI) res += 2 * M_PI;

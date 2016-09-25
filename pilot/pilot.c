@@ -50,9 +50,9 @@ char *dataP = data;
 char cmd[50] = "";					
 char *cmdP = cmd;
 
-double Kp = 0.7;						// Global regulator parameters
-double Kd = 0.5;
-double Ki = 0.04;
+double Kp = 1.0;						// Global regulator parameters
+double Kd = 1.0;
+double Ki = 0.05;
 double Km = 0.0;
 
 int accGyroCount = 0;				// Global for sensor reading freq.
@@ -79,9 +79,9 @@ int main() {
 	struct tm *loctime;
 	
 	//*****************************************************************************
-	//  All angels are expressed in degrees between 0 and 359.999.. in all 
+	//  All angles are expressed in degrees between 0 and 359.999.. in all 
 	//  routines except within the sensor fusion algorithms where radians are used. 
-	//  All differences between angels are immediatly converted to +/- 180 degrees.
+	//  All differences between angles are immediatly converted to +/- 180 degrees.
 	//*****************************************************************************
 	double rudderIs = 0;
 	struct timeval t0, t1, tRud0, tRud1;
@@ -133,7 +133,7 @@ int main() {
 	// Endless main loop
 	for (;;) {
 		
-		//  Poll rudder angel every milli second and filter
+		//  Poll rudder angle every milli second and filter
 		int newAngle = pollRudder(&rudderIs);
 		if(newAngle) {			
 			gettimeofday(&t1, NULL);		// dt = time between iterations
@@ -267,8 +267,8 @@ int main() {
 					strcpy(cmdP,  "");
 				}
 				// Update data for tcp transfer
-				//sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, yawCmd, yawIs, rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
-				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, yawIs, mY,  rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
+				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, yawCmd, yawIs, rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
+				//sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, yawIs, cY,  rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
 				accGyroCount = 0;
 				magCount = 0;
 
@@ -335,10 +335,10 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 
 	// All calculations in degrees in this function
 	static double dt = 0.1;	// Time interval for PID reg in seconds
-	static double rdmax = 3.0;
-	static double admax = 1.0;
+	static double rdmax = 1.5;
+	static double admax = 0.5;
 	static double xsi = 1.0;		// Damper spring and
-	static double ws = 1.0;	//  lp filter constants
+	static double ws = 1.0;		//  lp filter constants
 	static double psid = 0;		//  Desired yaw in rad
 	static double rd = 0;			//  Desired angular rate
 	static double ad = 0;		//  Desired angular accelration
