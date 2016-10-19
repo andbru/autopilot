@@ -88,7 +88,7 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 		 */
 		 
 		 Q = gsl_matrix_calloc(7, 7);
-		 double kq = 5e-6;
+		 double kq = 7.5e-6;
 		 double kw = 1e-3;
 		 gsl_matrix_set(Q, 0, 0, kq);
 		 gsl_matrix_set(Q, 1, 1, kq);

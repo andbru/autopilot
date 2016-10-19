@@ -25,6 +25,7 @@
 #include "rudder.h"
 #include "compass.h"
 #include "server.h"
+#include "deviation.h"
 
 
 // Globals accessable from all files if declared as "extern"
@@ -122,6 +123,7 @@ int main() {
 	initRudder();
 	initKnob();
 	initGps();
+	initDev();
 	//initCmd();		// Uncomment if controlled from keyboard or over SSH
 	
 	// mode = 0 startup, = 1 standby, = 2 heading hold, = 7 rudder control
@@ -224,12 +226,12 @@ int main() {
 			
 			switch(2) {				// Chose sensor algorithm or simulation
 				case 1:				// Madgwick
-					yawIs = mY;		
+					yawIs = deviation(mY);		
 					w = mW;
 					wDot = mWd;
 					break;
 				case 2:				// Cavallo
-					yawIs = cY;		
+					yawIs = deviation(cY);		
 					w = cW;
 					wDot = cWd;
 					break;
@@ -268,7 +270,7 @@ int main() {
 				}
 				// Update data for tcp transfer
 				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, yawCmd, yawIs, rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
-				//sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, yawIs, cY,  rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
+				//sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, deviation(mY), yawIs,  rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
 				accGyroCount = 0;
 				magCount = 0;
 
