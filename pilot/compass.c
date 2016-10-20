@@ -189,17 +189,6 @@ void *compass() {
 			double deltaT = (double)((micros() - lastT) / 1000000.0);
 			lastT = micros();
 			
-						/* This works		 
-			cavallo = updateCavallo(ax, -ay, -az, gx*M_PI/180, -gy*M_PI/180,	// to radians
-					 -gz*M_PI/180, -mx, my, mz, deltaT);		// align magnetometer
-
-			madgwick = updateMadgwick(ax, ay, az, gx*M_PI/180, gy*M_PI/180,	// to radians
-					 gz*M_PI/180, my, mx, -mz, deltaT);		// align magnetometer
-					 
-			 watson = updateWatson(ax, ay, az, gx*M_PI/180, gy*M_PI/180,	// to radians
-					 gz*M_PI/180, my, mx, -mz, deltaT);		// align magnetometer
-			*/
-			
 			static int cCount = 1000;		// wait for mpu to stabilize to avoid nan return values
 			if(cCount <= 0) {
 				cavallo = updateCavallo(ax, -ay, -az, gx, -gy, -gz, -mx, my, mz, deltaT);		// filter 9 sep

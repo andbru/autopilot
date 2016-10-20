@@ -39,6 +39,21 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	static double gbiasx = 0;
 	static double gbiasy = 0;
 	static double gbiasz = 0;
+	
+	static bool firstTime = true;
+	
+	if(deltat >= 0.01) {		// Soft restart if time between iterations exceeds 10 ms
+								// Happens within 30 seconds after power up
+		q1 = 1;
+		q2 = 0;
+		q3 = 0;
+		q4 = 0;
+		gbiasx = 0;
+		gbiasy = 0;
+		gbiasz = 0;
+		firstTime = true;
+		
+	}
 
 	static double beta = 0.4;			//  Best compromise = 0.2
 	//static double beta = 0.62;			//  Chris Winer
@@ -52,7 +67,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
     
 	double gerrx, gerry, gerrz;        // gyro bias error
 	
-	static bool firstTime = true;
+
 	if (firstTime) {
 		firstTime = false;
 		double initPsi = atan2(my, mx);
