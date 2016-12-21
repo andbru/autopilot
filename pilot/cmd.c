@@ -42,8 +42,9 @@ int pollKnob(int *mode, double *knobIncDec) {
 	static int clk1 = 1;
 	static int dt1 = 1;
 	static int sw = 1;
-	static int swStart = 1000;		// no of consecutive low to avoid switch bumps
-	static int swCount = 1000;
+	static int swShort = 1000;		// no of consecutive low to avoid switch bumps
+	static int swLong = 30000;		// No of consecutive low for power off
+	static int swCount = 0;
 	static double degPerClick = 0.5;	// Gearing
 	
 	if(*mode == 0) return 0;		// Still starting up
@@ -66,12 +67,18 @@ int pollKnob(int *mode, double *knobIncDec) {
 		*knobIncDec += upDown * degPerClick;
 	} 
 	
-	if(sw == 0) swCount--; else 	swCount = swStart;	
-	if(swCount == 0) {
-	
-		if(*mode == 1) *mode = 2; 	
-		else					
-		if((*mode == 2) || (*mode == 7)) *mode = 1;	// Toggle mode
+	// Switch short pulse = change mode, long pulse power off
+	if(sw == 0) {
+		swCount++ ;
+		printf("%d\n", swCount);
+		if(swCount >= swLong) system("poweroff");
+	} else {
+		if(swCount >= swShort) {
+			if(*mode == 1) *mode = 2; 	
+			else					
+			if((*mode == 2) || (*mode == 7)) *mode = 1;	// Toggle mode
+		}
+		swCount = 0;		// Reset counting for spikes
 		return 1;
 	}
 	

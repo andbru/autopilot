@@ -43,8 +43,8 @@ pthread_mutex_t mutexTcp = PTHREAD_MUTEX_INITIALIZER;	// Global semafor for thre
 FILE *fp;		//Global filehandle to make it possible to log in all routines
 struct fusionResult madgwickG;	// Global for interthread communication
 struct fusionResult cavalloG;		// Global for interthread communication
-double gpsCourseG;					// Global for interthread communication
-double gpsSpeedG;					// Global for interthread communication
+double gpsCourseG = 0;					// Global for interthread communication
+double gpsSpeedG = 0;					// Global for interthread communication
 
 char data[100] = "";					// Global for datatransfer over tcp
 char *dataP = data;
@@ -98,6 +98,9 @@ int main() {
 	double tcpIncDec = 0;
 	int redLed = 27;
 	int greenLed = 5;
+	
+	double gpsCourse = 0;
+	double gpsSpeed = 0;
 	
 	wiringPiSetup();
 
@@ -155,8 +158,6 @@ int main() {
 		}	*/
 		
 		// Poll gps
-		double gpsCourse;
-		double gpsSpeed;
 		bool newGps = pollGps(&gpsCourse, &gpsSpeed);
 		if(newGps) {
 			//printf("COG = %f   SOG = %f\r\n", gpsCourse, gpsSpeed);
@@ -269,7 +270,7 @@ int main() {
 					strcpy(cmdP,  "");
 				}
 				// Update data for tcp transfer
-				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, yawCmd, yawIs, rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
+				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d \r\n", mode, yawCmd, yawIs, rudderIs, Kp, Kd, Ki, Km, gpsSpeed, gpsCourse, accGyroCount, magCount);
 				//sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, deviation(mY), yawIs,  rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
 				accGyroCount = 0;
 				magCount = 0;
@@ -278,8 +279,8 @@ int main() {
 	
 			if(mode == 0) { digitalWrite(greenLed, LOW); digitalWrite(redLed, LOW);}	//Light up the Led's
 			if(mode == 1) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, LOW);}
-			if(mode == 2) { digitalWrite(greenLed, LOW); digitalWrite(redLed, HIGH);}
-			if(mode == 7) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, HIGH);}
+			if(mode == 2) { digitalWrite(greenLed, HIGH); digitalWrite(redLed, HIGH);}
+			if(mode == 7) { digitalWrite(greenLed, LOW); digitalWrite(redLed, HIGH);}
 			
 		}
 		
