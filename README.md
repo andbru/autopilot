@@ -4,6 +4,6 @@ This is my project to create an autopilot for my boat. I started out with arduin
 
 My boat is very volatile in low speeds. In speeds above 8 knots there are no problems.
 
-This project uses a Raspberry Pi 3 and so far there are just different tests of sensors, filters etc but as soon there will be anything useful for others I will note it here in readme.
+This project uses a Raspberry Pi 3 and a MPU9250 for the AHRS. More documentation will be published here in beginning of 2017.
 
 Anders
