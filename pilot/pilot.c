@@ -85,6 +85,7 @@ int main() {
 	//  All differences between angles are immediatly converted to +/- 180 degrees.
 	//*****************************************************************************
 	double rudderIs = 0;
+	double rudderMeasured = 0;
 	struct timeval t0, t1, tRud0, tRud1;
 	struct timeval tReg0, tReg1;
 	int mode = 0;
@@ -111,7 +112,7 @@ int main() {
 	printf("Logfile = %s\r\n", fname);
 	fp  = fopen(fname, "w");
 	// Print headline to logfile
-	fprintf(fp, "mode yawCmd rudderSet rudderIs gpsCourse gpsSpeed ");
+	fprintf(fp, "mode yawCmd rudderSet rudderMeasured rudderIs gpsCourse gpsSpeed ");
 	fprintf(fp, "cY cW cWd mY mW mWd accGyroCount magCount ");
 	fprintf(fp, "psid psiTilde rTilde integralPsiTilde rudderMoment tauFF \n");
 	
@@ -139,7 +140,7 @@ int main() {
 	for (;;) {
 		
 		//  Poll rudder angle every milli second and filter
-		int newAngle = pollRudder(&rudderIs);
+		int newAngle = pollRudder(&rudderMeasured);
 		if(newAngle) {			
 			gettimeofday(&t1, NULL);		// dt = time between iterations
 			double dt = elapsed(t1, t0);
@@ -168,7 +169,7 @@ int main() {
 		}
 		
 		
-		// Chose source for PID-regulator input
+		// Update PID-regulator input from tcp server
 		switch (mode) {
 			case 0:
 				break;	
@@ -218,7 +219,7 @@ int main() {
 				mWd = madgwickG.wdot;
 			pthread_mutex_unlock(&mutex1);
 			// Print global variables to log file
-			fprintf(fp, "%d  %f  %f  %f  %f  %f ", mode , yawCmd, rudderSet, rudderIs, gpsCourse, gpsSpeed);
+			fprintf(fp, "%d  %f  %f  %f  %f  %f  %f ", mode , yawCmd, rudderSet, rudderMeasured, rudderIs, gpsCourse, gpsSpeed);
 			fprintf(fp, "%f  %f  %f  %f  %f  %f %d %d ", cY, cW, cWd, mY, mW, mWd, accGyroCount, magCount);
 			
 			//  Simulate behaviour according to rudderSet
@@ -266,7 +267,7 @@ int main() {
 					tokP = strtok(NULL, ",");
 					double dKm = atof(tokP);
 					Km += dKm;					
-					printf ("%f  %f  %f  %f  %f\r\n",  tcpIncDec, dKp, dKd, dKi, dKm);
+					//printf ("%f  %f  %f  %f  %f\r\n",  tcpIncDec, dKp, dKd, dKi, dKm);
 					strcpy(cmdP,  "");
 				}
 				// Update data for tcp transfer
@@ -303,6 +304,10 @@ int main() {
 					rudderSet += cmdIncDec;
 					cmdIncDec = 0;
 				}
+				if(tcpIncDec != 0) {
+					rudderSet += tcpIncDec;
+					tcpIncDec = 0;
+				}
 				break;	
 		}
 			
@@ -311,7 +316,7 @@ int main() {
 			gettimeofday(&tRud1, NULL);
 			if(elapsed(tRud1, tRud0) > 10.0) {
 				tRud0 = tRud1;
-				actuateRudder(rudderSet, rudderIs);		
+				actuateRudder(rudderSet, rudderMeasured, &rudderIs);		
 			}
 		} else {
 			digitalWrite(25, LOW);		// Stop all rudder activity

@@ -70,7 +70,7 @@ void *server() {
 			char token[25] = "";
 			char *tokenP = token;
 			tokenP = strtok(bufferP, " ");
-			printf("Here is the message: %s\r\n",tokenP);
+			//printf("Here is the message: %s\r\n",tokenP);
 	
 			// Check for quit message
 			if (strcmpNS(tokenP, "q") == 0) {
@@ -85,7 +85,7 @@ void *server() {
 				pthread_mutex_lock(&mutexTcp);					// Read global data thread safe
 					n = write(newsockfd,dataP, strlen(dataP));
 				pthread_mutex_unlock(&mutexTcp);
-				printf("Sent:: %s\r\n",dataP);
+				//printf("Sent:: %s\r\n",dataP);
 				if (n < 0) error("ERROR writing to socket");
 	
 			}
@@ -96,7 +96,7 @@ void *server() {
 				// Find the data part
 				tokenP = strtok(NULL, " ");
 			
-				printf("Here is the message: %s\r\n",tokenP);
+				//printf("Here is the message: %s\r\n",tokenP);
 			
 				pthread_mutex_lock(&mutexTcp);					// Write global data thread safe
 					strcpy(cmdP, tokenP);
