@@ -16,14 +16,17 @@
 #include<stdlib.h>
 #include<string.h>
 #include <wiringSerial.h>
+#include <termios.h>
 
 #include "gps.h"
 #include "conversion.h"
 
 int hGps;		// Handle to serial gps port
+
 char nmea[100] = "";	// Buffer for nmea-sentences
 
 int initGps() {
+	/* Old GPS
 	int handle = serialOpen("/dev/ttyAMA0", 9600);
 	if(handle<0) return -1;
 	else {
@@ -44,11 +47,29 @@ int initGps() {
 		
 		return handle;
 	}
+	*/
+	int handle=open("/dev/ttyACM0", O_RDWR | O_NOCTTY | O_SYNC);
+	if (handle<0) 
+		return -1;
+	else {
+		hGps = handle;
+		
+		struct termios tty;
+		if (tcgetattr(hGps, &tty) < 0) {
+			printf("No tty data");
+			return -1;
+		}
+		cfsetospeed(&tty, (speed_t)B115200);
+		cfsetispeed(&tty, (speed_t)B115200);
+		
+		printf("Init GPS ready!\n");
+		return hGps;
+	}
 }
 
 
 bool pollGps(double *course, double *speed) {
-	
+	/* Old GPS
 	char c;
 	int noChar = serialDataAvail(hGps);
 	if(noChar>=1) {
@@ -72,6 +93,35 @@ bool pollGps(double *course, double *speed) {
 		}
 	}	
 	return false;
+	*/
+	
+	int rdlen;
+	char inBuf[100] = "";
+	bool dataOk = false;	
+	
+	rdlen=read(hGps, inBuf, sizeof(inBuf)-1);
+	int gpsCount;
+
+	for(gpsCount=0; gpsCount<=rdlen-1; gpsCount++) {
+		char c = inBuf[gpsCount];	// Read character
+		int len = strlen(nmea);
+		nmea[len] = c;					// Append to string
+		nmea[len+1] = '\0';				//  Add NULL terminator
+
+		if(c == '\n') {						// If end of line
+			// Action for new line
+			dataOk = dataOk || nmeaOk(course, speed);	
+			nmea[0] = '\0';				// Reset buffer to zero
+		}
+	}
+	
+	if(dataOk) {
+		dataOk = false;
+		return true;
+	}
+	
+	dataOk = false;
+	return false;
 }
 
 
@@ -84,7 +134,7 @@ bool nmeaOk( double *course, double *speed) {
 		chSum = chSum ^ nmea[iSum];
 	}
 	
-	//printf("%s\r\n", nmea);
+	//printf("%s\n", nmea);
 	
 	const char s[2] = ",";
 	char *param;
@@ -94,11 +144,16 @@ bool nmeaOk( double *course, double *speed) {
 	if(strcmpNS(param, "$GPVTG") == 0) {		// Ceck for "Track made good and speed
 		
 		param = strtok(NULL, s);				// Find second parameter, true course
-		if(param == 0) return false;
-		float fCourse;
-		int i = sscanf(param, "%f", &fCourse);	// Cast to float
-		if(i != 1) return false;						// Cast failed
-		*course = fCourse;						// Cast to double
+		
+		//if(param == 0) return false;
+		if (param==0) 
+			*course=0;
+		else {
+			float fCourse;
+			int i = sscanf(param, "%f", &fCourse);	// Cast to float
+			if(i != 1) return false;						// Cast failed
+			*course = fCourse;						// Cast to double
+		}
 		
 		param = strtok(NULL, s);				// Find third parameter, "T" as in true
 		if(strcmpNS(param, "T") == 0) {
@@ -134,6 +189,7 @@ bool nmeaOk( double *course, double *speed) {
 						str1[1] = '\0';
 						str2[0] = '*';
 						str2[1] = '\0';
+					
 						if(strcmpNS(str1, str2) != 0) return false;
 						
 						char sumStr[3];					// Check check sum vs
@@ -142,10 +198,13 @@ bool nmeaOk( double *course, double *speed) {
 						sumStr[2] = '\0';
 						int readSumDec = 0;
 						sscanf(sumStr, "%x", &readSumDec);
+						//printf("%s %x %x\n", sumStr, readSumDec, chSum);
 						if(readSumDec != chSum) return false;
-
+						
 						param = strtok(NULL, s);		// Check that there are no more fields
+						//printf("%s \n", param);
 						if(param == NULL) {
+							//printf("Data ok\n");
 							return true;
 						}
 					}

@@ -5,7 +5,8 @@ double dev[361];
 
 
 double deviation(double bearing) {
-	return bearing - dev[(int)rint(bearing)];
+//	return bearing - dev[(int)rint(bearing)];
+	return bearing;
 }
 
 

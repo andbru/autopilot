@@ -19,6 +19,9 @@
 
 #include "cmd.h"
 
+
+extern FILE *fp;
+
 void initKnob(void) {
 
 	pinMode(0, INPUT);		// Knob
@@ -70,7 +73,11 @@ int pollKnob(int *mode, double *knobIncDec) {
 	// Switch short pulse = change mode, long pulse power off
 	if(sw == 0) {
 		swCount++ ;
-		if(swCount >= swLong) system("poweroff");
+		if(swCount >= swLong) {
+			fclose(fp);
+			sleep(3);
+			system("poweroff");
+		}
 	} else {
 		if(swCount >= swShort) {
 			if(*mode == 1) *mode = 2; 	

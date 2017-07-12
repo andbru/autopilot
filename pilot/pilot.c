@@ -51,9 +51,9 @@ char *dataP = data;
 char cmd[50] = "";					
 char *cmdP = cmd;
 
-double Kp = 1.0;						// Global regulator parameters
-double Kd = 1.0;
-double Ki = 0.05;
+double Kp = 1.143;						// Global regulator parameters
+double Kd = 2.378;
+double Ki = 0.124;
 double Km = 0.0;
 
 int accGyroCount = 0;				// Global for sensor reading freq.
@@ -64,7 +64,7 @@ int magCount = 0;
 
 // Function prototypes, code at the end
 double elapsed(struct timeval t1, struct timeval t0);
-double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot);
+double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot, double gpsSpeedLp);
 struct fusionResult simulate(double rudSet, double dt);
 
 	
@@ -79,11 +79,11 @@ int main() {
 	time_t curtime;
 	struct tm *loctime;
 	
-	//*****************************************************************************
+	// *****************************************************************************
 	//  All angles are expressed in degrees between 0 and 359.999.. in all 
 	//  routines except within the sensor fusion algorithms where radians are used. 
 	//  All differences between angles are immediatly converted to +/- 180 degrees.
-	//*****************************************************************************
+	// *****************************************************************************
 	double rudderIs = 0;
 	double rudderMeasured = 0;
 	struct timeval t0, t1, tRud0, tRud1;
@@ -114,7 +114,8 @@ int main() {
 	// Print headline to logfile
 	fprintf(fp, "mode yawCmd rudderSet rudderMeasured rudderIs gpsCourse gpsSpeed ");
 	fprintf(fp, "cY cW cWd mY mW mWd accGyroCount magCount ");
-	fprintf(fp, "psid psiTilde rTilde integralPsiTilde rudderMoment tauFF \n");
+	fprintf(fp, "psid psiTilde rTilde integralPsiTilde rudderMoment tauFF Kp Kd Ki\n");
+
 	
 	// Start the second thread with gyro compass	
 	if((rc2 = pthread_create(&th2, NULL, &compass, NULL))) printf("No thread #2 created\\n");
@@ -153,7 +154,7 @@ int main() {
 		newMode = newMode;		// Just to scilence compiler warnings
 		
 		// Poll cmd over ssh
-		/*if(pollCmd(&mode, &cmdIncDec) < 0) {	// Uncomment if controlled from keyboard or over SSH
+		/* if(pollCmd(&mode, &cmdIncDec) < 0) {	// Uncomment if controlled from keyboard or over SSH
 			fclose(fp);
 			return -1;
 		}	*/
@@ -191,6 +192,22 @@ int main() {
 				}
 				break;	
 			case 7:
+				// Temporary use rudder control mode (=7) for restart of logging
+				
+				mode = 1;
+				fclose(fp);
+
+		        	// Open log file with date and time as filename
+		        	curtime = time(NULL);
+		        	loctime = localtime(&curtime);
+		        	strftime(fname, SIZE, "/home/andbru/autopilot/logs/%F_%T", loctime);
+				fp  = fopen(fname, "w");
+		        	// Print headline to logfile
+		        	fprintf(fp, "mode yawCmd rudderSet rudderMeasured rudderIs gpsCourse gpsSpeed ");
+		        	fprintf(fp, "cY cW cWd mY mW mWd accGyroCount magCount ");
+		        	fprintf(fp, "psid psiTilde rTilde integralPsiTilde rudderMoment tauFF Kp Kd Ki\n");
+				
+
 				yawCmd = yawIs;
 				break;	
 		}
@@ -218,6 +235,11 @@ int main() {
 				mW = madgwickG.w;
 				mWd = madgwickG.wdot;
 			pthread_mutex_unlock(&mutex1);
+			
+			double kGps = 0.1;		// Lp filter the speed signal
+			static double gpsSpeedLp = 0;
+			gpsSpeedLp = gpsSpeed * kGps + (1 - kGps) * gpsSpeedLp;
+			
 			// Print global variables to log file
 			fprintf(fp, "%d  %f  %f  %f  %f  %f  %f ", mode , yawCmd, rudderSet, rudderMeasured, rudderIs, gpsCourse, gpsSpeed);
 			fprintf(fp, "%f  %f  %f  %f  %f  %f %d %d ", cY, cW, cWd, mY, mW, mWd, accGyroCount, magCount);
@@ -245,7 +267,7 @@ int main() {
 			}
 			
 			// Call regulator
-			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot);
+			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot, gpsSpeedLp);
 			
 			pthread_mutex_lock(&mutexTcp);		// read/write to globals thread safe
 				// Check for command over tcp			
@@ -339,7 +361,7 @@ double elapsed(struct timeval t1, struct timeval t0){
 }
 
 
-double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
+double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot, double gpsSpeedLp) {
 
 	// All calculations in degrees in this function
 	static double dt = 0.1;	// Time interval for PID reg in seconds
@@ -358,13 +380,14 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	static double tauFF = 0;		// Feed forward of commands
 	
 	// Apend values from last itteration to log file
-	fprintf(fp, "%f  %f  %f  %f  %f  %f \n",  psid, psiTilde, rTilde, integralPsiTilde, rudderMoment, tauFF);
+	fprintf(fp, "%f  %f  %f  %f  %f  %f %f  %f  %f  \n",  psid, psiTilde, rTilde, integralPsiTilde, rudderMoment, tauFF, Kp, Kd, Ki);
 	
 	// Only run setpoint limitation and PID reg when heading hold (mode == 2)
 	if(mode == 2) {
 	
 		// Reference model for setpoint limitation.(Fossen chapter 10.2.1)
 		psid = dt * rd + psid;
+//		psid = yawCmd;		//  No setpoint limitation
 	
 		rd = dt * ad + rd;
 		if(rd >=   rdmax) rd =   rdmax;		//  Rate saturation
@@ -377,20 +400,29 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot) {
 	
 		//  PID-regulator with accelration feedback (Fossen capter 12.2.6
 		//  Formulas 12.154 and 12.155 and differentiated filtered accelration 12.153)
-		static double Knomoto = 0.75;		// Typical for 6 knots
-		static double Tnomoto = 3.0;		// Typical for 6 knots
-	
+		double Knomoto = 0.75;		// Average
+		double Tnomoto = 107 * pow(gpsSpeedLp, -1.8);		// Function of speed
+		
+		//		Adjust regulator parameters for speed
+		double ap = Kp / pow(7, -1);
+		double ad = Kd / pow(7, -0.801);
+		double ai  = (Ki - 0.18) / 7;
+		double Kpp = ap * pow(gpsSpeedLp, -1);
+		double Kdp = ad * pow(gpsSpeedLp, -0.801);
+		double Kip  = ai * gpsSpeedLp + 0.18;
+		
+		//		 Regulator errors
 		psiTilde = deg180to180(yawIs - psid);		// diff from desired setpoint
-	
 		integralPsiTilde += psiTilde * dt;	// Integral diff
-	
 		rTilde = w -rd;		// Diff in angular rate
 	
+		//		feed forward term for maneuvers
 		double m = Tnomoto / Knomoto;
-		
 		tauFF = (m +Km) * (ad + rd / Tnomoto);
-	
-		rudderMoment = tauFF - Kp * psiTilde - Kd * rTilde -Ki * integralPsiTilde -Km * wDot;
+		
+		//		Regulator call
+		rudderMoment = tauFF - Kpp * psiTilde - Kdp * rTilde -Kip * integralPsiTilde -Km * wDot;	//  With feed forward
+//		rudderMoment =  - Kpp * psiTilde - Kdp * rTilde -Kip * integralPsiTilde -Km * wDot;			//  Without feed forward
 
 		return deg180to180(rudderMoment);
 	

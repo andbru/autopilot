@@ -114,7 +114,7 @@ void actuateRudder(double rudderSet, double rudderMeas, double *rudderIs) {
 		static double dt = 0.01;
 		static double k = 0;
 		static double T = 0.2;
-		static double k11 = 0.03;
+		static double k11 = 0.01;
 		static double x = 0;
 		static double y = 0;
 		
@@ -205,6 +205,8 @@ void actuateRudder(double rudderSet, double rudderMeas, double *rudderIs) {
 	// Test printout	
 	//gettimeofday(&t, NULL);
 	//printf("%d   %f  %f  %F  %d\n", t.tv_usec, rudderSet, rudderMeas, *rudderIs, out);
+
+	//printf("%f  %f  %f  %d\n", rudderSet, rudderMeas, *rudderIs, out);
 	
 	lastOut = out;
 	
