@@ -75,6 +75,7 @@ int pollKnob(int *mode, double *knobIncDec) {
 		swCount++ ;
 		if(swCount >= swLong) {
 			fclose(fp);
+			digitalWrite(5, LOW);
 			sleep(3);
 			system("poweroff");
 		}

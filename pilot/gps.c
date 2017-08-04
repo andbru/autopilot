@@ -50,7 +50,7 @@ int initGps() {
 	*/
 	int handle=open("/dev/ttyACM0", O_RDWR | O_NOCTTY | O_SYNC);
 	if (handle<0) 
-		return -1;
+		return 0;
 	else {
 		hGps = handle;
 		
@@ -62,8 +62,10 @@ int initGps() {
 		cfsetospeed(&tty, (speed_t)B115200);
 		cfsetispeed(&tty, (speed_t)B115200);
 		
+		fcntl(hGps, F_SETFL, FNDELAY);		// Return zero if buffer empty, no blocking in read()
+		
 		printf("Init GPS ready!\n");
-		return hGps;
+		return 1;
 	}
 }
 
@@ -168,8 +170,9 @@ bool nmeaOk( double *course, double *speed) {
 				float fSpeed;
 				int i = sscanf(param, "%f", &fSpeed);	// Cast to float
 				if(i != 1) return false;						// Cast failed
-				*speed = fSpeed;							// Cast to double
-			
+				*speed = fSpeed;
+				*speed = 7.5;							// Cast to double
+				
 				param = strtok(NULL, s);			// Check for "N" in field #7
 				if(strcmpNS(param, "N") == 0) {
 				

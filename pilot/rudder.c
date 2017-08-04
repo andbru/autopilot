@@ -61,7 +61,7 @@ void initRudder(void) {
 }
 
 
-int pollRudder(double *angel) {
+int pollRudder(double *angle) {
 
 	static int fsRaw = 0x7fffff;		// Full scale digital
 	static double fsU = 3.3;			// Full scale volts
@@ -69,7 +69,7 @@ int pollRudder(double *angel) {
 	static double fk = 0.1;			// Filter constant
 	
 	//  *******************************************************************************************
-	//  Conversion to degrees, y angel in deg, x signal in volt. Straight line y=kx+m. degPerVolt = k. 
+	//  Conversion to degrees, y angle in deg, x signal in volt. Straight line y=kx+m. degPerVolt = k. 
 	//  uZeroDeg = voltage at 0 deg => m = - k * uZeroDeg = - degPerVolt * uZeroDeg
 	//  *******************************************************************************************
 	static double degPerVolt = 36.49 ;
@@ -91,7 +91,7 @@ int pollRudder(double *angel) {
 		
 		fu = u * fk + (1.0 - fk) * fu; 		// Digital filter
 		
-		*angel = degPerVolt *fu - degPerVolt * uZeroDeg; 	// Conversion to deg
+		*angle = degPerVolt *fu - degPerVolt * uZeroDeg; 	// Conversion to deg
 
 		return 1;
 	}

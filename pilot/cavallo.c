@@ -114,9 +114,13 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 		 
 		 x = gsl_vector_calloc(7);
 		 //gsl_vector_set(x, 0, 1.0);
-		double initPsi = atan2(my, -mx);
+		double initPsi = atan2(my, -mx) - 3.14*75/180;
 		gsl_vector_set(x, 0, cos(initPsi / 2));
 		gsl_vector_set(x, 3, -sin(initPsi / 2));
+		//gsl_vector_set(x, 0, -0.573);
+		//gsl_vector_set(x, 1, -0.0217);
+		//gsl_vector_set(x, 2, -0.0044);
+		//gsl_vector_set(x, 3, 0.8198);
 	
 		 z = gsl_vector_calloc(9);		 
 		 F = gsl_matrix_calloc(7, 7);		 
@@ -150,6 +154,7 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 	double wyh = gsl_vector_get ( x, 5);
 	double wzh = gsl_vector_get ( x, 6);
 	//vectorPrint(x, 7);
+	//printf("%f %f %f %f %f %f\n", mx,my, q0, q1, q2 , q3);
 
 	// Measurements
 	gsl_vector_set (z, 0, ax);
