@@ -171,7 +171,7 @@ bool nmeaOk( double *course, double *speed) {
 				int i = sscanf(param, "%f", &fSpeed);	// Cast to float
 				if(i != 1) return false;						// Cast failed
 				*speed = fSpeed;
-				*speed = 7.5;							// Cast to double
+				//*speed = 7.5;							// Cast to double
 				
 				param = strtok(NULL, s);			// Check for "N" in field #7
 				if(strcmpNS(param, "N") == 0) {
