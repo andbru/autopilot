@@ -19,6 +19,12 @@
 extern int accGyroCount;
 extern int magCount;
 extern FILE *fp;	
+extern pthread_mutex_t mutex1;
+extern int counter;
+extern struct fusionResult cavalloG;
+extern struct fusionResult madgwickG;
+extern double gpsCourseG;
+extern double gpsSpeedG;
 
 // Declaration of file-global variables
 int accGyroHandle;			//  i2c variables
@@ -55,8 +61,14 @@ struct fusionResult {
 void *compass() {
 
 	struct fusionResult madgwick;
+	madgwick.yaw = 0;
+	madgwick.w = 0;
+	madgwick.wdot = 0;
 	struct fusionResult cavallo;
-	extern pthread_mutex_t mutex1;
+	cavallo.yaw = 0;
+	cavallo.w = 0;
+	cavallo.wdot = 0;
+	//extern pthread_mutex_t mutex1;
 	
 	int16_t axRaw = 0;
 	int16_t ayRaw = 0;
@@ -89,11 +101,10 @@ void *compass() {
 	tMag = micros();
 	
 	for(;;) {
-	
 		// Check for new AccGyro data
 		regValue = wiringPiI2CReadReg8(accGyroHandle, 58);
 		if(regValue & 0x01) {
-		//printf("%lu   %#x  ",  micros() - tAccGyro, ii);
+			//printf("%lu   %#x  ",  micros() - tAccGyro, ii);
 			tAccGyro = micros();
 			unsigned long t = micros();
 			accGyroRead();
@@ -119,11 +130,11 @@ void *compass() {
 				magCount++;
 			pthread_mutex_unlock(&mutex1);
 			newData = true;
-		}
+		}		
 		
 		if(newData) {		// If either accgyro or mag has new data convert to physical units and call fusion routines
 			newData = false;
-			
+
 			axRaw = (axRead & 0x00FF) * 256 + (axRead >> 8);	// I2CReadReg16 swaps the bytes, swap back
 			ayRaw = (ayRead & 0x00FF) * 256 + (ayRead >> 8);	//  and convert to signed int
 			azRaw = (azRead & 0x00FF) * 256 + (azRead >> 8);
@@ -192,27 +203,23 @@ void *compass() {
 			static int cCount = 1000;		// wait for mpu to stabilize to avoid nan return values
 			if(cCount <= 0) {
 				cavallo = updateCavallo(ax, -ay, -az, gx, -gy, -gz, -mx, my, mz, deltaT);		// filter 9 sep
-				
+
 				madgwick = updateMadgwick(ax, ay, az, gx, gy, gz, my, mx, -mz, deltaT);		// filter
 
-				cCount = 0;
+				cCount = 0;		
 			}
-			cCount--;
+			cCount--;		
 		}
 		
 		// Transfer values to global variables thread safe and get gps values
-		extern int counter;
-		extern struct fusionResult cavalloG;
-		extern struct fusionResult madgwickG;
-		extern double gpsCourseG;
-		extern double gpsSpeedG;	
+			
 		pthread_mutex_lock(&mutex1);
-			counter++;
+			counter++;		
 			cavalloG = cavallo;
 			madgwickG = madgwick;
 			double gpsCourse = gpsCourseG;
 			double gpsSpeed = gpsSpeedG;
-		pthread_mutex_unlock(&mutex1);
+		pthread_mutex_unlock(&mutex1);		
 		gpsCourse = gpsCourse;		// Silence compiler warnings
 		gpsSpeed = gpsSpeed;
 		

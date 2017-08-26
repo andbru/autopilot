@@ -18,6 +18,8 @@ double degtorad(double angle) {
 double deg0to360(double angle) {
 	double res = angle;
 	
+	if(angle>1000 || angle<-1000) return 0;
+
 	while(res < 0 || res >= 360) {
 		if(res < 0) res += 360;
 		if(res >= 360) res -= 360;

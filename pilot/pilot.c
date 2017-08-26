@@ -108,7 +108,9 @@ int main() {
 	// Open log file with date and time as filename
 	curtime = time(NULL);
 	loctime = localtime(&curtime); 
-	strftime(fname, SIZE, "/home/andbru/autopilot/logs/%F_%T", loctime);
+	strftime(fname, SIZE, "/media/usb/logs/%F_%T.txt", loctime);
+	fname[29] ='-';		// raspbian stretch doesnt accept : in filenames
+	fname[32] ='-';
 	printf("Logfile = %s\r\n", fname);
 	fp  = fopen(fname, "w");
 	// Print headline to logfile
@@ -159,7 +161,7 @@ int main() {
 			fclose(fp);
 			return -1;
 		}	*/
-		
+
 		// Poll gps
 		if(gpsPresent) {
 			bool newGps = pollGps(&gpsCourse, &gpsSpeed);
@@ -171,8 +173,7 @@ int main() {
 				pthread_mutex_unlock(&mutex1);
 			}
 		}
-		
-		
+
 		// Update PID-regulator input from tcp server
 		switch (mode) {
 			case 0:
@@ -202,7 +203,9 @@ int main() {
 		        	// Open log file with date and time as filename
 		        	curtime = time(NULL);
 		        	loctime = localtime(&curtime);
-		        	strftime(fname, SIZE, "/home/andbru/autopilot/logs/%F_%T", loctime);
+		        	strftime(fname, SIZE, "/media/usb/logs/%F_%T.txt", loctime);
+				fname[29] ='-';		// raspbian stretch doesnt accept : in filenames
+				fname[32] ='-';
 				fp  = fopen(fname, "w");
 		        	// Print headline to logfile
 		        	fprintf(fp, "mode rudderSet rudderMeasured rudderIs gpsCourse gpsSpeed ");
@@ -219,7 +222,7 @@ int main() {
 		gettimeofday(&tReg1, NULL);
 		if(elapsed(tReg1, tReg0) > 50.0) {
 			tReg0 = tReg1;
-			
+
 			//  Get global data for regulator input and print to logfile
 			double cY;
 			double cW;
@@ -457,6 +460,8 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot, dou
 	
 	// Apend values to log file
 	fprintf(fp, "%f  %f  %f  %f  %f  %f  %f %f  %f  %f  \n",  yawCmd, psid, psiTilde, rTilde, integralPsiTilde, rudderMoment, tauFF, Kpp, Kdp, Kip);
+	
+	//fflush(fp);		// Empty buffer during debugging
 
 	//printf("%f  %f  %f  %f  %f  %f %f  %f  %f  \n",  psid, psiTilde, rTilde, integralPsiTilde, rudderMoment, tauFF, Kpp, Kdp, Kip);	
 	
