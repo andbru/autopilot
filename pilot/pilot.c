@@ -114,6 +114,7 @@ int main() {
 	printf("Logfile = %s\r\n", fname);
 	fp  = fopen(fname, "w");
 	// Print headline to logfile
+	static double timestamp = 0;
 	fprintf(fp, "time mode rudderSet rudderMeasured rudderIs gpsCourse gpsSpeed ");
 	fprintf(fp, "cY cW cWd mY mW mWd accGyroCount magCount ");
 	fprintf(fp, "yawCmd psid psiTilde rTilde integralPsiTilde rudderMoment tauFF Kp Kd Ki\n");
@@ -208,6 +209,7 @@ int main() {
 				fname[32] ='-';
 				fp  = fopen(fname, "w");
 		        	// Print headline to logfile
+				timestamp = 0;
 		        	fprintf(fp, "time mode rudderSet rudderMeasured rudderIs gpsCourse gpsSpeed ");
 		        	fprintf(fp, "cY cW cWd mY mW mWd accGyroCount magCount ");
 		        	fprintf(fp, "yawCmd psid psiTilde rTilde integralPsiTilde rudderMoment tauFF Kp Kd Ki\n");
@@ -269,10 +271,9 @@ int main() {
 			if(mode != 2) yawCmd = yawIs;
 			
 			// Print global variables to log file
-			static double time = 0;
-			fprintf(fp, "%f  %d  %f  %f  %f  %f   %f ", time, mode , rudderSet, rudderMeasured, rudderIs, gpsCourse, gpsSpeed);
+			fprintf(fp, "%f  %d  %f  %f  %f  %f   %f ", timestamp, mode , rudderSet, rudderMeasured, rudderIs, gpsCourse, gpsSpeed);
 			fprintf(fp, "%f  %f  %f  %f  %f  %f %d %d ", cY, cW, cWd, mY, mW, mWd, accGyroCount, magCount);
-			time += .05;
+			timestamp += .05;
 			
 			// Call regulator
 			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot, gpsSpeedLp);
