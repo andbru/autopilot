@@ -17,7 +17,7 @@ void matrixPrint(gsl_matrix * m, int imax, int jmax);
 void vectorPrint(gsl_vector * v, int imax);
 void matrixInverse(gsl_matrix * m, gsl_matrix * mi, int n);
 
-//  Struct for YPR return values
+//  Struct for YPR return values	
 struct fusionResult {
 	double yaw;
 	double w;
@@ -38,7 +38,7 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 										//  in the declaration statment. Solved by creating a code
 										//  segment thats executed only once
 
-	struct fusionResult ret;
+	struct fusionResult retC;
 
 	//  Matrices and vectors are declared static to avoid initialization in each iteration
 	//  x and P also for keeping their value between iterations
@@ -434,15 +434,15 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 	double wdot = 1 / Tw * (-xw + wzh);
 	
 	//  Assign return values
-	ret.wdot = radtodeg(wdot);	
-	ret.w = radtodeg(wzh);
+	retC.wdot = radtodeg(wdot);	
+	retC.w = radtodeg(wzh) - 0.85;		// Adjust for bias + .85
 	//ret.yaw = deg0to360(radtodeg(atan2(2*(q0*q3+q1*q2), 1-2*(q2*q2+q3*q3))));	//  Return value in deg (0 to 360 deg)
 	
-	ret.yaw = deg0to360(90 -radtodeg(atan2(2*(-q0*q3+q1*q2), -1+2*(q0*q0+q1*q1))));	//  Return value in deg (0 to 360 deg)
+	retC.yaw = deg0to360(90 -radtodeg(atan2(2*(-q0*q3+q1*q2), -1+2*(q0*q0+q1*q1))));	//  Return value in deg (0 to 360 deg)
 
 	//printf("%f %f %f %f %f\n", atan2(-my, mx), q0, q1, q2, q3);
 
-	return ret;
+	return retC;
 }
 
 void vectorPrint(gsl_vector * v, int imax) {

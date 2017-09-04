@@ -223,6 +223,7 @@ int main() {
 		static double rudderPID = 0;
 		gettimeofday(&tReg1, NULL);
 		if(elapsed(tReg1, tReg0) > 50.0) {
+			//printf("%f\n",elapsed(tReg1, tReg0));
 			tReg0 = tReg1;
 
 			//  Get global data for regulator input and print to logfile
@@ -249,7 +250,7 @@ int main() {
 			struct fusionResult sim;
 			sim = simulate(rudderSet, 0.1);
 			
-			switch(2) {				// Chose sensor algorithm or simulation
+			switch(1) {				// Chose sensor algorithm or simulation
 				case 1:				// Madgwick
 					yawIs = deviation(mY);		
 					w = mW;

@@ -29,7 +29,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	double gy = degtorad(gyDeg);
 	double gz = degtorad(gzDeg);
 
-	struct fusionResult ret;
+	struct fusionResult retM;
 
 	static double q1 = 1;   // quaternion static to keep values between iterations   
 	static double q2 = 0;
@@ -43,7 +43,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	static bool firstTime = true;
 	
 	if(deltat >= 0.01) {		// Soft restart if time between iterations exceeds 10 ms
-								// Happens within 30 seconds after power up
+						// Happens within 30 seconds after power up
 		q1 = 1;
 		q2 = 0;
 		q3 = 0;
@@ -55,12 +55,12 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 		
 	}
 
-	static double beta = 0.4;			//  Best compromise = 0.2
+	static double beta = 0.2;			//  Best compromise = 0.2
 	//static double beta = 0.62;			//  Chris Winer
 	//static double beta = 0.041;		//  Madgwick report
 	static double zeta = 0.0030;		//  Madgwick report
 
-	double norm;
+	double norm=0;
 	double hx, hy, _2bx, _2bz;
 	double s1, s2, s3, s4;
 	double qDot1, qDot2, qDot3, qDot4;
@@ -103,7 +103,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
     
 	// Normalise accelerometer measurement
 	norm = sqrt(ax * ax + ay * ay + az * az);
-	if (norm == 0.0f) return ret; // handle NaN
+	if (norm == 0.0f) return retM; // handle NaN
 	norm = 1.0f / norm;
 	ax *= norm;
 	ay *= norm;
@@ -111,7 +111,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
     
 	// Normalise magnetometer measurement
 	norm = sqrt(mx * mx + my * my + mz * mz);
-	if (norm == 0.0f) return ret; // handle NaN
+	if (norm == 0.0f) return retM; // handle NaN
 	norm = 1.0f / norm;
 	mx *= norm;
 	my *= norm;
@@ -205,7 +205,7 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	double w = -gz;
 	
 	// LP-filter for w
-	static double kw = 0.05;
+	static double kw = 0.01;
 	static double wlp = 0;
 	wlp = w * kw + (1 -kw) * wlp;
 	
@@ -216,9 +216,9 @@ struct fusionResult updateMadgwick(double ax, double ay, double az,
 	double wdot = 1 / Tw * (-xw + wlp);
 	
 	// Assign return values
-	ret.yaw = yaw;
-	ret.w = radtodeg(wlp);
-	ret.wdot = radtodeg(wdot);
+	retM.yaw = yaw;
+	retM.w = radtodeg(wlp);
+	retM.wdot = radtodeg(wdot);
 	
-	return ret;
+	return retM;
 }
