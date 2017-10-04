@@ -72,9 +72,9 @@ int pollRudder(double *angle) {
 	//  Conversion to degrees, y angle in deg, x signal in volt. Straight line y=kx+m. degPerVolt = k. 
 	//  uZeroDeg = voltage at 0 deg => m = - k * uZeroDeg = - degPerVolt * uZeroDeg
 	//  *******************************************************************************************
-	static double degPerVolt = 36.49 ;
-	//static double uZeroDeg = 1.756;
-	static double uZeroDeg = 1.848;
+	static double degPerVolt = 37.42 ;
+	//static double uZeroDeg = 2.347;
+	static double uZeroDeg = 2.60;
 	
 	// Check DRDY#
 	if (digitalRead(6) == 0) {
@@ -88,10 +88,12 @@ int pollRudder(double *angle) {
 		int res = rData[1] * 256 * 256 + rData[2] * 256 + rData[3];
 		
 		double u = res * fsU / fsRaw;	// Conversion to Volt
+		//printf("%f\n", u);
 		
 		fu = u * fk + (1.0 - fk) * fu; 		// Digital filter
 		
 		*angle = degPerVolt *fu - degPerVolt * uZeroDeg; 	// Conversion to deg
+		//printf("%f  %f  %f  \n", u, fu, *angle);
 
 		return 1;
 	}
@@ -109,12 +111,13 @@ void actuateRudder(double rudderSet, double rudderMeas, double *rudderIs) {
 	double pSlow = 400;
 	
 	//  Fixed gain observer  ****************************
+/*
 	static double lastOut = 0;
 	{	// Separate block to avoid reuse of variables
 		static double dt = 0.01;
 		static double k = 0;
 		static double T = 0.2;
-		static double k11 = 0.01;
+		static double k11 = 0.1;
 		static double x = 0;
 		static double y = 0;
 		
@@ -126,7 +129,10 @@ void actuateRudder(double rudderSet, double rudderMeas, double *rudderIs) {
 		
 		*rudderIs = x;
 	}
+*/
 	//  ***************************************************
+
+	*rudderIs = rudderMeas;		// No fixed gain observer
 	
 	int out = 0;
 	//struct timeval t;
@@ -208,7 +214,7 @@ void actuateRudder(double rudderSet, double rudderMeas, double *rudderIs) {
 
 	//printf("%f  %f  %f  %d\n", rudderSet, rudderMeas, *rudderIs, out);
 	
-	lastOut = out;
+	//lastOut = out;
 	
 	return;
 }

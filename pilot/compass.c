@@ -204,7 +204,7 @@ void *compass() {
 			if(cCount <= 0) {
 				cavallo = updateCavallo(ax, -ay, -az, gx, -gy, -gz, -mx, my, mz, deltaT);		// filter 9 sep
 
-				//madgwick = updateMadgwick(ax, ay, az, gx, gy, gz, my, mx, -mz, deltaT);		// filter
+				madgwick = updateMadgwick(ax, ay, az, gx, gy, gz, my, mx, -mz, deltaT);		// filter
 
 				cCount = 0;		
 			}

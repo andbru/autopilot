@@ -51,9 +51,9 @@ char *dataP = data;
 char cmd[50] = "";					
 char *cmdP = cmd;
 
-double Kp = 1.143;						// Global regulator parameters
-double Kd = 2.378;
-double Ki = 0.124;
+double Kp = 0.9;						// Global regulator parameters
+double Kd = 1.9;
+double Ki = 0.09;
 double Km = 0.0;
 
 int accGyroCount = 0;				// Global for sensor reading freq.

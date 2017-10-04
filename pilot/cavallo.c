@@ -435,7 +435,7 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 	
 	//  Assign return values
 	retC.wdot = radtodeg(wdot);	
-	retC.w = radtodeg(wzh) - 1.35;		// Adjust for bias
+	retC.w = radtodeg(wzh) - 0;		// Adjust for bias
 	//ret.yaw = deg0to360(radtodeg(atan2(2*(q0*q3+q1*q2), 1-2*(q2*q2+q3*q3))));	//  Return value in deg (0 to 360 deg)
 	
 	retC.yaw = deg0to360(90 -radtodeg(atan2(2*(-q0*q3+q1*q2), -1+2*(q0*q0+q1*q1))));	//  Return value in deg (0 to 360 deg)
