@@ -102,6 +102,7 @@ int main() {
 	
 	double gpsCourse = 0;
 	double gpsSpeed = 0;
+	static double gpsSpeedLp = 0;
 	
 	wiringPiSetup();
 
@@ -115,7 +116,7 @@ int main() {
 	fp  = fopen(fname, "w");
 	// Print headline to logfile
 	static double timestamp = 0;
-	fprintf(fp, "time mode rudderSet rudderMeasured rudderIs gpsCourse gpsSpeed ");
+	fprintf(fp, "time mode rudderSet gpsSpeedLp rudderIs gpsCourse gpsSpeed ");
 	fprintf(fp, "cY cW cWd mY mW mWd accGyroCount magCount ");
 	fprintf(fp, "yawCmd psid psiTilde rTilde integralPsiTilde rudderMoment tauFF Kp Kd Ki\n");
 
@@ -144,9 +145,11 @@ int main() {
 	// Endless main loop
 	for (;;) {
 		
-		//  Poll rudder angle every milli second and filter
+		//  Poll rudder angle every milli second
 		int newAngle = pollRudder(&rudderMeasured);
-		if(newAngle) {			
+		if(newAngle) {
+			rudderIs = rudderMeasured;		// No fixed gain observer
+			
 			gettimeofday(&t1, NULL);		// dt = time between iterations
 			double dt = elapsed(t1, t0);
 			dt = dt;		// Scilence compiler warnings
@@ -163,11 +166,17 @@ int main() {
 			return -1;
 		}	*/
 
-		// Poll gps
+		// Poll gps and filter
 		if(gpsPresent) {
 			bool newGps = pollGps(&gpsCourse, &gpsSpeed);
 			if(newGps) {
 				//printf("COG = %f   SOG = %f\r\n", gpsCourse, gpsSpeed);
+				
+				double kGps = 0.02;		// Lp filter the speed signal
+				gpsSpeedLp = gpsSpeed * kGps + (1 - kGps) * gpsSpeedLp;
+
+				//printf("%f  %f  hej!\n", gpsSpeed, gpsSpeedLp);
+
 				pthread_mutex_lock(&mutex1);		// Update global variables in a threadsafe way
 					gpsCourseG = gpsCourse;
 					gpsSpeedG = gpsSpeed;
@@ -210,7 +219,7 @@ int main() {
 				fp  = fopen(fname, "w");
 		        	// Print headline to logfile
 				timestamp = 0;
-		        	fprintf(fp, "time mode rudderSet rudderMeasured rudderIs gpsCourse gpsSpeed ");
+		        	fprintf(fp, "time mode rudderSet gpsSpeedLp rudderIs gpsCourse gpsSpeed ");
 		        	fprintf(fp, "cY cW cWd mY mW mWd accGyroCount magCount ");
 		        	fprintf(fp, "yawCmd psid psiTilde rTilde integralPsiTilde rudderMoment tauFF Kp Kd Ki\n");
 
@@ -241,10 +250,6 @@ int main() {
 				mW = madgwickG.w;
 				mWd = madgwickG.wdot;
 			pthread_mutex_unlock(&mutex1);
-			
-			double kGps = 0.1;		// Lp filter the speed signal
-			static double gpsSpeedLp = 0;
-			gpsSpeedLp = gpsSpeed * kGps + (1 - kGps) * gpsSpeedLp;
 						
 			//  Simulate behaviour according to rudderSet
 			struct fusionResult sim;
@@ -272,12 +277,13 @@ int main() {
 			if(mode != 2) yawCmd = yawIs;
 			
 			// Print global variables to log file
-			fprintf(fp, "%f  %d  %f  %f  %f  %f   %f ", timestamp, mode , rudderSet, rudderMeasured, rudderIs, gpsCourse, gpsSpeed);
+			fprintf(fp, "%f  %d  %f  %f  %f  %f   %f ", timestamp, mode , rudderSet, gpsSpeedLp, rudderIs, gpsCourse, gpsSpeed);
 			fprintf(fp, "%f  %f  %f  %f  %f  %f %d %d ", cY, cW, cWd, mY, mW, mWd, accGyroCount, magCount);
 			timestamp += .05;
 			
 			// Call regulator
 			rudderPID = PIDAreg(mode, yawCmd, yawIs, w, wDot, gpsSpeedLp);
+			//printf("%f  %f  \n", gpsSpeed, gpsSpeedLp);
 			
 			pthread_mutex_lock(&mutexTcp);		// read/write to globals thread safe
 				// Check for command over tcp			
@@ -301,7 +307,7 @@ int main() {
 					Km += dKm;					
 					//printf ("%f  %f  %f  %f  %f\r\n",  tcpIncDec, dKp, dKd, dKi, dKm);
 					strcpy(cmdP,  "");
-				}
+									}
 				// Update data for tcp transfer
 				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %3.1f %1.0d \r\n", mode, yawCmd, yawIs, rudderIs, Kp, Kd, Ki, Km, gpsSpeed, gpsCourse, w, magCount);
 				//sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, deviation(mY), yawIs,  rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);

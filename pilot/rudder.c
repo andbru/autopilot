@@ -66,7 +66,7 @@ int pollRudder(double *angle) {
 	static int fsRaw = 0x7fffff;		// Full scale digital
 	static double fsU = 3.3;			// Full scale volts
 	static double fu = 0;				// Filtered voltage
-	static double fk = 0.1;			// Filter constant
+	static double fk = 0.1;				// Filter constant
 	
 	//  *******************************************************************************************
 	//  Conversion to degrees, y angle in deg, x signal in volt. Straight line y=kx+m. degPerVolt = k. 
@@ -131,8 +131,6 @@ void actuateRudder(double rudderSet, double rudderMeas, double *rudderIs) {
 	}
 */
 	//  ***************************************************
-
-	*rudderIs = rudderMeas;		// No fixed gain observer
 	
 	int out = 0;
 	//struct timeval t;

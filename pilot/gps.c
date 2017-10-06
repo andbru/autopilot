@@ -132,11 +132,12 @@ bool nmeaOk( double *course, double *speed) {
 	int lenNmea = strlen(nmea);
 	unsigned int chSum = 0;					// Calculate checksum before corrupting string
 	int iSum = 0;
-	for(iSum = 1; iSum < lenNmea - 5; iSum++) {
+	for(iSum = 1; iSum < lenNmea - 4; iSum++) {
 		chSum = chSum ^ nmea[iSum];
 	}
 	
 	//printf("%s\n", nmea);
+	//printf("%d\n", lenNmea);
 	
 	const char s[2] = ",";
 	char *param;
@@ -201,9 +202,11 @@ bool nmeaOk( double *course, double *speed) {
 						sumStr[2] = '\0';
 						int readSumDec = 0;
 						sscanf(sumStr, "%x", &readSumDec);
-						//printf("%s %x %x\n", sumStr, readSumDec, chSum);
+						
 						if(readSumDec != chSum) return false;
 						
+						//printf("%s %x %x\n", sumStr, readSumDec, chSum);
+
 						param = strtok(NULL, s);		// Check that there are no more fields
 						//printf("%s \n", param);
 						if(param == NULL) {
