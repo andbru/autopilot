@@ -26,6 +26,7 @@
 #include "compass.h"
 #include "server.h"
 #include "deviation.h"
+#include "EM7180.h"
 
 
 // Globals accessable from all files if declared as "extern"
@@ -103,6 +104,9 @@ int main() {
 	double gpsCourse = 0;
 	double gpsSpeed = 0;
 	static double gpsSpeedLp = 0;
+
+	clock_t last, now;
+	last = clock();
 	
 	wiringPiSetup();
 
@@ -135,6 +139,10 @@ int main() {
 	//printf("%d\n", gpsPresent);
 	initDev();
 	//initCmd();		// Uncomment if controlled from keyboard or over SSH
+
+	int htty = 0;
+	unsigned long ts;
+	initEM7180(&htty);
 	
 	// mode = 0 startup, = 1 standby, = 2 heading hold, = 7 rudder control
 	mode = 1;
@@ -175,12 +183,18 @@ int main() {
 				double kGps = 0.02;		// Lp filter the speed signal
 				gpsSpeedLp = gpsSpeed * kGps + (1 - kGps) * gpsSpeedLp;
 
-				//printf("%f  %f  hej!\n", gpsSpeed, gpsSpeedLp);
+				//printf("%f  %f \n", gpsSpeed, gpsSpeedLp);
 
 				pthread_mutex_lock(&mutex1);		// Update global variables in a threadsafe way
 					gpsCourseG = gpsCourse;
 					gpsSpeedG = gpsSpeed;
 				pthread_mutex_unlock(&mutex1);
+
+				now = clock();			//  Time between gps updates
+				double tGps = (double)(now - last) / CLOCKS_PER_SEC * 1000;
+				tGps = tGps;
+				//printf("%f \n", tGps);
+				last = now;
 			}
 		}
 
@@ -246,10 +260,20 @@ int main() {
 				cY = cavalloG.yaw;
 				cW = cavalloG.w;
 				cWd = cavalloG.wdot;
-				mY = madgwickG.yaw;
-				mW = madgwickG.w;
-				mWd = madgwickG.wdot;
+				//mY = madgwickG.yaw;
+				//mW = madgwickG.w;
+				//mWd = madgwickG.wdot;
 			pthread_mutex_unlock(&mutex1);
+
+			int pollRet = pollEM7180(&htty, &ts, &mY, &mW);
+			if(pollRet != 1) printf("Reading error GyroCompass code = %d\n", pollRet);
+			//printf("%lu %f   %f\n", ts, mY, cY);
+
+			// Numerical differentiation to get wdot
+			static double Tw = 0.25;
+			static double xw = 0;
+			xw = 0.05 / Tw * (-xw + mW) + xw;
+			mWd = 1 / Tw * (-xw + mW); 
 						
 			//  Simulate behaviour according to rudderSet
 			struct fusionResult sim;
@@ -442,6 +466,9 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot, dou
 			Kdp = d7 * pow(3.0, -0.801);
 			Kip = i7 * 3.0 + 0.18;
 		}
+		Kpp=Kp;		//  Temporarily use inputparameters
+		Kdp=Kd;
+		Kip=Ki;
 		
 		//		 Regulator errors
 		psiTilde = deg180to180(yawIs - psid);		// diff from desired setpoint
@@ -454,8 +481,8 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot, dou
 		//printf("%F  %f  %f  %f  %f  %f  %f\n", tauFF, m, Tnomoto, Km, gpsSpeedLp, ad, rd);
 		
 		//		Regulator calculation
-		//rudderMoment = tauFF - Kpp * psiTilde - Kdp * rTilde -Kip * integralPsiTilde -Km * wDot;	//  With feed forward
-		rudderMoment =  - Kpp * psiTilde - Kdp * rTilde - Kip * integralPsiTilde -Km * wDot;			//  Without feed forward
+		rudderMoment = tauFF*0.5 - Kpp * psiTilde - Kdp * rTilde -Kip * integralPsiTilde -Km * wDot;	//  With feed forward
+		//rudderMoment =  - Kpp * psiTilde - Kdp * rTilde - Kip * integralPsiTilde -Km * wDot;			//  Without feed forward
 		
 	} else {		// If not mode == 2, let parameters follow actual values
 		psid = yawIs;

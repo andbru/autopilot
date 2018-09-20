@@ -48,7 +48,7 @@ int initGps() {
 		return handle;
 	}
 	*/
-	int handle=open("/dev/ttyACM0", O_RDWR | O_NOCTTY | O_SYNC);
+	int handle=open("/dev/ttyACM1", O_RDWR | O_NOCTTY | O_SYNC);
 	if (handle<0) 
 		return 0;
 	else {
@@ -71,31 +71,6 @@ int initGps() {
 
 
 bool pollGps(double *course, double *speed) {
-	/* Old GPS
-	char c;
-	int noChar = serialDataAvail(hGps);
-	if(noChar>=1) {
-
-		int gpsCount;
-		for(gpsCount=1; gpsCount<=noChar; gpsCount++) {
-			c = serialGetchar(hGps);	// Read character
-			//printf("%c", c);
-	
-			int len = strlen(nmea);
-			nmea[len] = c;					// Append to string
-			nmea[len+1] = '\0';				//  Add NULL terminator
-
-			if(c == '\n') {						// If end of line
-		
-				// Action for new line
-				bool dataOk = nmeaOk(course, speed);	
-				nmea[0] = '\0';				// Reset buffer to zero
-				if(dataOk) return true;
-			}
-		}
-	}	
-	return false;
-	*/
 	
 	int rdlen;
 	char inBuf[100] = "";
@@ -112,7 +87,8 @@ bool pollGps(double *course, double *speed) {
 
 		if(c == '\n') {						// If end of line
 			// Action for new line
-			dataOk = dataOk || nmeaOk(course, speed);	
+			//dataOk = dataOk || nmeaOk(course, speed);
+			dataOk = nmeaOk(course, speed);	
 			nmea[0] = '\0';				// Reset buffer to zero
 		}
 	}
@@ -143,7 +119,7 @@ bool nmeaOk( double *course, double *speed) {
 	char *param;
 	param = strtok(nmea, s);					// Find first parameter
 	
-	if(strcmpNS(param, "") == 0) return false;	// Empty string
+	if(strcmpNS(param, "") == 0) return false;		// Empty string
 	if(strcmpNS(param, "$GPVTG") == 0) {		// Ceck for "Track made good and speed
 		
 		param = strtok(NULL, s);				// Find second parameter, true course
