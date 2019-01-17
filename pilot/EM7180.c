@@ -4,103 +4,94 @@
 #include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
+#include <sys/time.h>
+#include <errno.h>
 
 #include "EM7180.h"
 
 int initEM7180(int *htty) {
 
-	*htty = open("/dev/ttyACM0", O_RDWR | O_NOCTTY | O_SYNC);
+	*htty = open("/dev/ttyACM0", O_RDWR | O_NOCTTY | O_SYNC | O_NONBLOCK);
 
 	if ( htty < 0)	
 		return 0;
 	else {
-			struct termios ttyData;
-			if ( tcgetattr(*htty, &ttyData) < 0) {
-				printf("No ttyData\n");
-				return -1;
-			}
+		struct termios ttyData;
+		if ( tcgetattr(*htty, &ttyData) < 0) {
+			printf("No ttyData\n");
+			return -1;
+		}
 
-			cfsetospeed(&ttyData, (speed_t)B115200);
-			cfsetispeed(&ttyData, (speed_t)B115200);
-			
-			fcntl(*htty,F_SETFL, FNDELAY);		//  No blocking in read, return zero if no data
+		//cfsetospeed(&ttyData, (speed_t)B38400);
+		//cfsetispeed(&ttyData, (speed_t)B38400);
+		
+		cfsetospeed(&ttyData, (speed_t)B115200);
+		cfsetispeed(&ttyData, (speed_t)B115200);
+		
+		fcntl(*htty,F_SETFL, FNDELAY);		//  No blocking in read, return zero if no data
+
 	}
 
-	int rLen = 0;
-	char buf[100];
-	rLen = read(*htty, buf,sizeof(buf) - 1); 		//  Empty buffer
-	while(rLen > 0) {
-		rLen = read(*htty, buf,sizeof(buf) - 1); 	//  Read data until nothing left
-	}
+	// Clean input buffer and request new data to be read next cycle
+	tcflush(*htty, TCIFLUSH);
+
+	// Request new AHRS data
+	write(*htty, "b", 2);
+	
 	printf("Init EM7180 ok!\n");
 
 	return 0;
 }
 
 int pollEM7180(int *htty, unsigned long *ts, double *course, double *rate) {
-	//printf("Hejsan poll\n");
+
 	int rLen;
 	char buf[100];
-	char line[100];
-	line[0] = '\0';
-	int count = 0;
 
-	rLen = read(*htty, buf,sizeof(buf) - 1); 		//  Empty buffer
-	while(rLen > 0) {
-		rLen = read(*htty, buf,sizeof(buf) - 1); 	//  Read data until nothing left
+	rLen = read(*htty, buf,sizeof(buf) - 1); 	//  Read one line of data
+	//printf("%d %s\n", rLen, buf);
+	while (rLen > 0) {
+		rLen = read(*htty, buf,sizeof(buf) - 1);	// Find last line in buffer
+		//for(int ibuf = 0; ibuf <= strlen(buf) -1; ibuf++) {printf("%d  ", buf[ibuf]);}
+		//printf("\n");
+		//printf("%d %s \n", rLen, buf);
 	}
-
-	write(*htty, "b", sizeof("b"));
-
-	while (1)  {
-		count++;
-		if(count > 3000) {
-			//printf("%d \n", count);
-			return -5;
-		}
-
-		rLen = read(*htty, buf,sizeof(buf) - 1); 	//  Read data
+	//printf("%s \n", strerror(errno));
+	//printf("\n\n");
+		
+	unsigned long t;
+	float c;
+	float r;
+	int k  = sscanf(buf, "$%lu,%f,%f*", &t, &c, &r);
+	//printf("%d %lu %f %f \n", k, t, c, r);
+		
+	*ts = t;
+	*course = c;
+	*rate = r;
 	
-		int lCount;
-		for(lCount = 0; lCount <= rLen - 1; lCount++) {
+	// Clean input buffer and request new data to be read next cycle
+	tcflush(*htty, TCIFLUSH);
 
-			char c = buf[lCount]; //  printf("BP \n");
-			//printf("%x  ", c);
-			int lLen = strlen(line);
-			line[lLen] = c;						//  Append to line
-			lLen++;
-			line[lLen] = '\0';					//  Add null-terminator
+	// Request new AHRS data
+	write(*htty, "b", 2);
+	
+	buf[0] = '\n';		// Clean buffer
+	
+	return k;
 
-			if(c == '\n' ) {						//  New line completed
-				//printf("%s", line);
-
-				if(lLen < 10) return -1;			//  Too short string, not valit. Try again.
-
-				const char s[2] = ",";
-				char *param;
-				param = strtok(line, s);			//  Find first parameter
-				unsigned long t;
-				int k  = sscanf(param, "%lu", &t);
-				if(k != 1) return -2;
-				*ts = t;
-
-				param = strtok(NULL, s);		//  Next find course
-				double c;
-				k  = sscanf(param, "%lf", &c);
-				if(k != 1) return -3;
-				*course = c;
-
-				param = strtok(NULL, s);		//  Next find angle rate
-				double r;
-				k  = sscanf(param, "%lf", &r);
-				if(k != 1) return -4;
-				*rate = r;
-
-				line[0] = '\0';					//  Reset line to empty
-				
-				return 1;
-			}
-		}	
-	}
-	return 1;
 }
+
+// Useful code snippets
+
+	/*	Print buffer in hexadecimal
+	if(count > 2500) {
+		printf("%d \n", count);
+		for(int ibuf = 0; ibuf <= strlen(buf) -1; ibuf++) {printf("%x  ", buf[ibuf]);}
+		printf("\n");
+	}
+	*/
+
+	//struct timeval t3000;		// Print time in ms
+	//gettimeofday(&t3000, NULL);
+	//printf("%ld \n", t3000.tv_usec / 1000);

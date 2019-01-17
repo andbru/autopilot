@@ -48,7 +48,7 @@ int initGps() {
 		return handle;
 	}
 	*/
-	int handle=open("/dev/ttyACM1", O_RDWR | O_NOCTTY | O_SYNC);
+	int handle=open("/dev/ttyACM1", O_RDWR | O_NOCTTY | O_SYNC | O_NONBLOCK);
 	if (handle<0) 
 		return 0;
 	else {
@@ -76,9 +76,18 @@ bool pollGps(double *course, double *speed) {
 	char inBuf[100] = "";
 	bool dataOk = false;	
 	
-	rdlen=read(hGps, inBuf, sizeof(inBuf)-1);
-	int gpsCount;
+	//rdlen=read(hGps, inBuf, sizeof(inBuf)-1);
+	rdlen=read(hGps, nmea, sizeof(inBuf)-1);
+	nmea[rdlen] = '\0';
+	
+	dataOk = nmeaOk(course, speed);
 
+	if(dataOk) tcflush(hGps, TCIFLUSH);	// Clean input buffer	
+
+	nmea[0] = '\0';				// Reset buffer to zero
+
+/*	
+	int gpsCount;
 	for(gpsCount=0; gpsCount<=rdlen-1; gpsCount++) {
 		char c = inBuf[gpsCount];	// Read character
 		int len = strlen(nmea);
@@ -88,10 +97,14 @@ bool pollGps(double *course, double *speed) {
 		if(c == '\n') {						// If end of line
 			// Action for new line
 			//dataOk = dataOk || nmeaOk(course, speed);
-			dataOk = nmeaOk(course, speed);	
+			dataOk = nmeaOk(course, speed);
+			
+			if(dataOk) tcflush(hGps, TCIFLUSH);	// Clean input buffer	
+			
 			nmea[0] = '\0';				// Reset buffer to zero
 		}
 	}
+*/
 	
 	if(dataOk) {
 		dataOk = false;

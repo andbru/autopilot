@@ -60,6 +60,8 @@ double Km = 0.0;
 int accGyroCount = 0;				// Global for sensor reading freq.
 int magCount = 0;
 
+int loopCount = 0;
+
 #define SIZE 256
 
 
@@ -67,10 +69,12 @@ int magCount = 0;
 double elapsed(struct timeval t1, struct timeval t0);
 double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot, double gpsSpeedLp);
 struct fusionResult simulate(double rudSet, double dt);
+void powerOff();
 
 	
 int main() {
 	
+	int countMain = 0;	// Counter for mainloop
 	int rc2;			// Handle and struct for new threads
 	pthread_t th2;
 	int rc3;
@@ -104,6 +108,7 @@ int main() {
 	double gpsCourse = 0;
 	double gpsSpeed = 0;
 	static double gpsSpeedLp = 0;
+	
 
 	clock_t last, now;
 	last = clock();
@@ -141,7 +146,7 @@ int main() {
 	//initCmd();		// Uncomment if controlled from keyboard or over SSH
 
 	int htty = 0;
-	unsigned long ts;
+	//unsigned long ts;
 	initEM7180(&htty);
 	
 	// mode = 0 startup, = 1 standby, = 2 heading hold, = 7 rudder control
@@ -177,8 +182,11 @@ int main() {
 		// Poll gps and filter
 		if(gpsPresent) {
 			bool newGps = pollGps(&gpsCourse, &gpsSpeed);
+			loopCount++;
 			if(newGps) {
 				//printf("COG = %f   SOG = %f\r\n", gpsCourse, gpsSpeed);
+				//printf("%d \n", loopCount);
+				loopCount = 0;
 				
 				double kGps = 0.02;		// Lp filter the speed signal
 				gpsSpeedLp = gpsSpeed * kGps + (1 - kGps) * gpsSpeedLp;
@@ -222,7 +230,7 @@ int main() {
 				// Temporary use rudder control mode (=7) for restart of logging
 				
 				mode = 1;
-				fclose(fp);
+				powerOff();
 
 		        	// Open log file with date and time as filename
 		        	curtime = time(NULL);
@@ -239,7 +247,9 @@ int main() {
 
 				break;	
 		}
-		yawCmd = deg0to360(yawCmd);		// Ensure right interval				
+		yawCmd = deg0to360(yawCmd);		// Ensure right interval
+		
+		countMain++;				
 				
 		//  Call PID regulator 20 times per second independent of mode.
 		//  That gives PID opportunity to follow compass in standby
@@ -248,6 +258,9 @@ int main() {
 		if(elapsed(tReg1, tReg0) > 50.0) {
 			//printf("%f\n",elapsed(tReg1, tReg0));
 			tReg0 = tReg1;
+			
+			//printf("%d \n", countMain);
+			countMain = 0;
 
 			//  Get global data for regulator input and print to logfile
 			double cY;
@@ -260,26 +273,45 @@ int main() {
 				cY = cavalloG.yaw;
 				cW = cavalloG.w;
 				cWd = cavalloG.wdot;
-				//mY = madgwickG.yaw;
-				//mW = madgwickG.w;
-				//mWd = madgwickG.wdot;
+				mY = madgwickG.yaw;
+				mW = madgwickG.w;
+				mWd = madgwickG.wdot;
 			pthread_mutex_unlock(&mutex1);
+			printf("%.1f   %.1f       %.1f   %.1f\n", mY, cY, mW, cW);
+			
+			// Measure time interval
+			//struct timeval tStamp;
+			//gettimeofday(&tStamp, NULL);
+			//printf("%ld \n", tStamp.tv_usec/1000);
+			
+			/*
+			unsigned long tEM7180;
+			double cEM7180;
+			double rEM7180;
+			int pollRet = pollEM7180(&htty, &tEM7180, &cEM7180, &rEM7180);
+			if(pollRet == 3) {	// EM7180 returns zero approx once an hour
+				ts = tEM7180;	// Skip those measurements
+				mY = cEM7180;
+				mW = rEM7180;
+			}
+			ts = ts;
+			if(pollRet != 3) printf("Reading error GyroCompass code = %d  %f  %f\n", pollRet, mY, cY); //else printf("ok!  %f  %f\n", mY, cY);
+			//printf("%.1f   ", gpsCourse);
+			printf("%.1f   %.1f       %.1f   %.1f\n", mY, cY, mW, cW);
 
-			int pollRet = pollEM7180(&htty, &ts, &mY, &mW);
-			if(pollRet != 1) printf("Reading error GyroCompass code = %d\n", pollRet);
-			//printf("%lu %f   %f\n", ts, mY, cY);
-
+			// Remove when EM7180 test is over
 			// Numerical differentiation to get wdot
 			static double Tw = 0.25;
 			static double xw = 0;
 			xw = 0.05 / Tw * (-xw + mW) + xw;
-			mWd = 1 / Tw * (-xw + mW); 
+			mWd = 1 / Tw * (-xw + mW);
+			*/ 
 						
 			//  Simulate behaviour according to rudderSet
 			struct fusionResult sim;
 			sim = simulate(rudderSet, 0.1);
 			
-			switch(1) {				// Chose sensor algorithm or simulation
+			switch(2) {				// Chose sensor algorithm or simulation
 				case 1:				// Madgwick
 					yawIs = deviation(mY);		
 					w = mW;
@@ -301,7 +333,7 @@ int main() {
 			if(mode != 2) yawCmd = yawIs;
 			
 			// Print global variables to log file
-			fprintf(fp, "%f  %d  %f  %f  %f  %f   %f ", timestamp, mode , rudderSet, gpsSpeedLp, rudderIs, gpsCourse, gpsSpeed);
+			fprintf(fp, "%f %d %f %f %f %f %f ", timestamp, mode , rudderSet, gpsSpeedLp, rudderIs, gpsCourse, gpsSpeed);
 			fprintf(fp, "%f  %f  %f  %f  %f  %f %d %d ", cY, cW, cWd, mY, mW, mWd, accGyroCount, magCount);
 			timestamp += .05;
 			
@@ -496,7 +528,7 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot, dou
 	}
 	
 	// Apend values to log file
-	fprintf(fp, "%f  %f  %f  %f  %f  %f  %f %f  %f  %f  \n",  yawCmd, psid, psiTilde, rTilde, integralPsiTilde, rudderMoment, tauFF, Kpp, Kdp, Kip);
+	fprintf(fp, "%f %f %f %f %f %f %f %f %f %f\n",  yawCmd, psid, psiTilde, rTilde, integralPsiTilde, rudderMoment, tauFF, Kpp, Kdp, Kip);
 	
 	//fflush(fp);		// Empty buffer during debugging
 
@@ -527,6 +559,12 @@ struct fusionResult simulate(double rudSet, double dt) {
 	sim.wdot = wDot;
 
 	return sim;
+}
+
+
+void powerOff() {
+	fclose(fp);
+	system("poweroff");
 }
 
 

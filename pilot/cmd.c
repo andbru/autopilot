@@ -21,6 +21,7 @@
 
 
 extern FILE *fp;
+extern void powerOff();
 
 void initKnob(void) {
 
@@ -77,7 +78,7 @@ int pollKnob(int *mode, double *knobIncDec) {
 			fclose(fp);
 			digitalWrite(5, LOW);
 			sleep(3);
-			system("poweroff");
+			powerOff();
 		}
 	} else {
 		if(swCount >= swShort) {
