@@ -13,6 +13,7 @@
 #include"conversion.h"
 
 // Function declarations //
+double cyDev(double yaw);
 void matrixPrint(gsl_matrix * m, int imax, int jmax);
 void vectorPrint(gsl_vector * v, int imax);
 void matrixInverse(gsl_matrix * m, gsl_matrix * mi, int n);
@@ -435,10 +436,14 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 	
 	//  Assign return values
 	retC.wdot = radtodeg(wdot);	
-	retC.w = radtodeg(wzh) - 0;		// Adjust for bias
+	retC.w = radtodeg(wzh) - 0.84;		// Adjust for bias
 	//ret.yaw = deg0to360(radtodeg(atan2(2*(q0*q3+q1*q2), 1-2*(q2*q2+q3*q3))));	//  Return value in deg (0 to 360 deg)
 	
-	retC.yaw = deg0to360(90 - radtodeg(atan2(2*(-q0*q3+q1*q2), -1+2*(q0*q0+q1*q1))));	//  Return value in deg (0 to 360 deg)
+	double yaw = deg0to360(90 - radtodeg(atan2(2*(-q0*q3+q1*q2), -1+2*(q0*q0+q1*q1))));	//  Return value in deg (0 to 360 deg)
+	
+	double newYaw = cyDev(yaw);
+	
+	retC.yaw = newYaw;
 
 	//printf("%f %f %f %f %f\n", atan2(-my, mx), q0, q1, q2, q3);
 
@@ -474,5 +479,26 @@ void matrixInverse(gsl_matrix * m, gsl_matrix * mi, int n) {
 	gsl_linalg_LU_decomp (m, perm, &signum);
 	// Invert the matrix
 	gsl_linalg_LU_invert (m, perm, mi);
+}
+
+double cyDev(double yaw) {
+	
+	// Deviation table to interpolate in
+	double cY[14] = { -37, 1, 34.3, 63.8, 90.5, 118, 144, 171, 199, 225.5, 253.5, 287, 323, 361};
+	double dev_cY[14] = { -7, 1, 4.3, 3.8, 0.5, -2, -6, -9, -11, -14.5, -16.5, -13, -7, 1};
+	double kcY[14] = { 0.210526, 0.099099, -0.01695, -0.1236, -0.09091, -0.15385, -0.11111, -0.07143, -0.13208, -0.07143, 0.104478, 0.166667, 0.210526, 0};
+	
+	int i = 0;
+	while(cY[i] <= yaw) i++;
+	i--;
+	
+	float newYaw = yaw - dev_cY[i] - (yaw - cY[i]) * kcY[i];
+	
+	if(newYaw < 0) newYaw += 360.0;
+	if(newYaw > 360) newYaw -= 360.0;
+	
+	//printf("%f %f %d\n", newYaw, yaw, i);
+	
+	return newYaw;
 }
 

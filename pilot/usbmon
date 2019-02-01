@@ -1,0 +1,6 @@
+#/bin/sh
+mount -t debugfs none_debugs /sys/kernel/debug
+modprobe usbmon
+chmod 755 /sys/kernel/debug
+chmod 644 /sys/kernel/debug/usb/usbmon/*
+

@@ -145,9 +145,8 @@ int main() {
 	initDev();
 	//initCmd();		// Uncomment if controlled from keyboard or over SSH
 
-	int htty = 0;
 	//unsigned long ts;
-	initEM7180(&htty);
+	initEM7180();
 	
 	// mode = 0 startup, = 1 standby, = 2 heading hold, = 7 rudder control
 	mode = 1;
@@ -273,31 +272,30 @@ int main() {
 				cY = cavalloG.yaw;
 				cW = cavalloG.w;
 				cWd = cavalloG.wdot;
-				mY = madgwickG.yaw;
-				mW = madgwickG.w;
-				mWd = madgwickG.wdot;
+				//mY = madgwickG.yaw;
+				//mW = madgwickG.w;
+				//mWd = madgwickG.wdot;
 			pthread_mutex_unlock(&mutex1);
-			printf("%.1f   %.1f       %.1f   %.1f\n", mY, cY, mW, cW);
+			//printf("%.1f   %.1f       %.1f   %.1f\n", mY, cY, mW, cW);
 			
 			// Measure time interval
 			//struct timeval tStamp;
 			//gettimeofday(&tStamp, NULL);
 			//printf("%ld \n", tStamp.tv_usec/1000);
 			
-			/*
-			unsigned long tEM7180;
-			double cEM7180;
-			double rEM7180;
-			int pollRet = pollEM7180(&htty, &tEM7180, &cEM7180, &rEM7180);
-			if(pollRet == 3) {	// EM7180 returns zero approx once an hour
-				ts = tEM7180;	// Skip those measurements
+	
+			//unsigned long tEM7180;
+			float cEM7180;
+			float rEM7180;
+			int pollRet = pollEM7180(&cEM7180, &rEM7180);
+			if(pollRet != 0) {	
 				mY = cEM7180;
 				mW = rEM7180;
-			}
-			ts = ts;
-			if(pollRet != 3) printf("Reading error GyroCompass code = %d  %f  %f\n", pollRet, mY, cY); //else printf("ok!  %f  %f\n", mY, cY);
+			} 
+			//ts = ts;
+
 			//printf("%.1f   ", gpsCourse);
-			printf("%.1f   %.1f       %.1f   %.1f\n", mY, cY, mW, cW);
+			//printf("%.1f   %.1f       %.1f   %.1f\n", mY, cY, mW, cW);
 
 			// Remove when EM7180 test is over
 			// Numerical differentiation to get wdot
@@ -305,13 +303,15 @@ int main() {
 			static double xw = 0;
 			xw = 0.05 / Tw * (-xw + mW) + xw;
 			mWd = 1 / Tw * (-xw + mW);
-			*/ 
+			
+			
+			printf("%.1f   %.1f       %.1f   %.1f\n", mY, cY, mW, cW);
 						
 			//  Simulate behaviour according to rudderSet
 			struct fusionResult sim;
 			sim = simulate(rudderSet, 0.1);
 			
-			switch(2) {				// Chose sensor algorithm or simulation
+			switch(1) {				// Chose sensor algorithm or simulation
 				case 1:				// Madgwick
 					yawIs = deviation(mY);		
 					w = mW;

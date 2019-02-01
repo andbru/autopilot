@@ -261,6 +261,7 @@ void initMPU9250(void) {
 	ts.tv_sec = 0;							//  Delay 100 ms
 	ts.tv_nsec = 100000000;
 	nanosleep(&ts, NULL);
+	printf("Hej!!!\n");
 	
 	i = wiringPiI2CWriteReg8(accGyroHandle, 0x6B, 0x01);			// PWR_MGMT_1 PLL as clocksource if possible
 	printf("PWR_MGMT_1   %#x PLL as clocksource if possible\n", i);
