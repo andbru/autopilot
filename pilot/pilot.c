@@ -25,7 +25,6 @@
 #include "rudder.h"
 #include "compass.h"
 #include "server.h"
-#include "deviation.h"
 #include "EM7180.h"
 
 
@@ -142,7 +141,6 @@ int main() {
 	initKnob();
 	int gpsPresent = initGps();
 	//printf("%d\n", gpsPresent);
-	initDev();
 	//initCmd();		// Uncomment if controlled from keyboard or over SSH
 
 	//unsigned long ts;
@@ -229,7 +227,7 @@ int main() {
 				// Temporary use rudder control mode (=7) for restart of logging
 				
 				mode = 1;
-				powerOff();
+				//powerOff();
 
 		        	// Open log file with date and time as filename
 		        	curtime = time(NULL);
@@ -313,12 +311,12 @@ int main() {
 			
 			switch(1) {				// Chose sensor algorithm or simulation
 				case 1:				// Madgwick
-					yawIs = deviation(mY);		
+					yawIs = mY;		
 					w = mW;
 					wDot = mWd;
 					break;
 				case 2:				// Cavallo
-					yawIs = deviation(cY);		
+					yawIs = cY;		
 					w = cW;
 					wDot = cWd;
 					break;
@@ -366,7 +364,6 @@ int main() {
 									}
 				// Update data for tcp transfer
 				sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %3.1f %1.0d \r\n", mode, yawCmd, yawIs, rudderIs, Kp, Kd, Ki, Km, gpsSpeed, gpsCourse, w, magCount);
-				//sprintf(dataP, "%1.0d %06.2f %06.2f %06.2f %3.1f %3.1f %4.2f %3.1f %06.2f %06.2f %1.0d %1.0d ", mode, deviation(mY), yawIs,  rudderPID, Kp, Kd, Ki, Km, mY, gpsCourse, accGyroCount, magCount);
 				accGyroCount = 0;
 				magCount = 0;
 
