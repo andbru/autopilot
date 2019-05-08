@@ -48,7 +48,7 @@ int initGps() {
 		return handle;
 	}
 	*/
-	int handle=open("/dev/ttyACM1", O_RDWR | O_NOCTTY | O_SYNC | O_NONBLOCK);
+	int handle=open("/dev/ttyACM0", O_RDWR | O_NOCTTY | O_SYNC | O_NONBLOCK);
 	if (handle<0) 
 		return 0;
 	else {

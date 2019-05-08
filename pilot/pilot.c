@@ -185,7 +185,7 @@ int main() {
 				//printf("%d \n", loopCount);
 				loopCount = 0;
 				
-				double kGps = 0.02;		// Lp filter the speed signal
+				double kGps = 0.1;		// Lp filter the speed signal
 				gpsSpeedLp = gpsSpeed * kGps + (1 - kGps) * gpsSpeedLp;
 
 				//printf("%f  %f \n", gpsSpeed, gpsSpeedLp);
@@ -303,7 +303,8 @@ int main() {
 			mWd = 1 / Tw * (-xw + mW);
 			
 			
-			printf("%.1f   %.1f       %.1f   %.1f\n", mY, cY, mW, cW);
+			//printf("%.1f   %.1f       %.1f   %.1f\n", mY, cY, mW, cW);
+			//printf("%.1f   %.1f       %.1f   %.1f\n", gpsCourse, gpsSpeed, mW, cW);
 						
 			//  Simulate behaviour according to rudderSet
 			struct fusionResult sim;
@@ -510,8 +511,8 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot, dou
 		//printf("%F  %f  %f  %f  %f  %f  %f\n", tauFF, m, Tnomoto, Km, gpsSpeedLp, ad, rd);
 		
 		//		Regulator calculation
-		rudderMoment = tauFF*0.5 - Kpp * psiTilde - Kdp * rTilde -Kip * integralPsiTilde -Km * wDot;	//  With feed forward
-		//rudderMoment =  - Kpp * psiTilde - Kdp * rTilde - Kip * integralPsiTilde -Km * wDot;			//  Without feed forward
+		//rudderMoment = tauFF*0.5 - Kpp * psiTilde - Kdp * rTilde -Kip * integralPsiTilde -Km * wDot;	//  With feed forward
+		rudderMoment =  - Kpp * psiTilde - Kdp * rTilde - Kip * integralPsiTilde -Km * wDot;			//  Without feed forward
 		
 	} else {		// If not mode == 2, let parameters follow actual values
 		psid = yawIs;
