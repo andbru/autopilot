@@ -53,7 +53,7 @@ char *cmdP = cmd;
 
 double Kp = 0.9;						// Global regulator parameters
 double Kd = 1.9;
-double Ki = 0.09;
+double Ki = 0.08;
 double Km = 0.0;
 
 int accGyroCount = 0;				// Global for sensor reading freq.
@@ -158,7 +158,7 @@ int main() {
 		//  Poll rudder angle every milli second
 		int newAngle = pollRudder(&rudderMeasured);
 		if(newAngle) {
-			rudderIs = rudderMeasured;		// No fixed gain observer
+//			rudderIs = rudderMeasured;		// No fixed gain observer
 			
 			gettimeofday(&t1, NULL);		// dt = time between iterations
 			double dt = elapsed(t1, t0);
@@ -281,7 +281,7 @@ int main() {
 			//gettimeofday(&tStamp, NULL);
 			//printf("%ld \n", tStamp.tv_usec/1000);
 			
-	
+                        	
 			//unsigned long tEM7180;
 			float cEM7180;
 			float rEM7180;
@@ -290,6 +290,7 @@ int main() {
 				mY = cEM7180;
 				mW = rEM7180;
 			} 
+                        
 			//ts = ts;
 
 			//printf("%.1f   ", gpsCourse);
@@ -310,13 +311,14 @@ int main() {
 			struct fusionResult sim;
 			sim = simulate(rudderSet, 0.1);
 			
-			switch(1) {				// Chose sensor algorithm or simulation
+			switch(2) {				// Chose sensor algorithm or simulation
 				case 1:				// Madgwick
 					yawIs = mY;		
 					w = mW;
 					wDot = mWd;
 					break;
 				case 2:				// Cavallo
+					//yawIs = mY;	// test with yaw from em and w from cavallo kalman filter
 					yawIs = cY;		
 					w = cW;
 					wDot = cWd;
@@ -343,6 +345,7 @@ int main() {
 			pthread_mutex_lock(&mutexTcp);		// read/write to globals thread safe
 				// Check for command over tcp			
 				if(strcmpNS(cmdP, "") != 0) {
+                                        //printf("%s \r\n", cmdP);
 					char *tokP = strtok(cmdP, ",");
 					double dMode = atoi(tokP);
 					if(dMode != 0) mode = dMode;			// No change in mode is indicated by the value zero
@@ -414,7 +417,9 @@ int main() {
 		} else {
 			digitalWrite(25, LOW);		// Stop all rudder activity
 			pwmWrite(1, 0);
-			pwmWrite(24, 0);	
+			pwmWrite(24, 0);
+		
+			rudderIs = rudderMeasured;	// Let filtered value follow  measured	
 		}
 	}
 
@@ -437,9 +442,9 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot, dou
 	// All calculations in degrees in this function
 	static double dt = 0.05;	// Time interval for PID reg in seconds
 	static double rdmax =3.0;
-	static double admax = 1.5;
+	static double admax = 5.0;
 	static double xsi = 1.0;		// Damper spring and
-	static double ws = 1.0;		//  lp filter constants
+	static double ws = 1.5;		//  lp filter constants
 	static double psid = 0;		//  Desired yaw in rad
 	static double rd = 0;			//  Desired angular rate
 	static double ad = 0;		//  Desired angular accelration
@@ -485,6 +490,17 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot, dou
 		if (gpsSpeedLp < 3.0) Tnomoto = 107*pow(3.0, -1.8);	// Limit when low speed
 		
 		//		Adjust regulator parameters for speed
+		if(gpsSpeedLp < 3) gpsSpeedLp = 3;	// Avoid strange speed signals
+		if(gpsSpeedLp > 25) gpsSpeedLp = 25;
+		//Kpp = - 0.5 * log(gpsSpeedLp) +  2.58 + Kp;
+		//Kdp = - log(gpsSpeedLp) + 5.10 + Kd;
+		//Kip = 0.2 + Ki;
+                
+                //Kpp = - 0.25 * log(gpsSpeedLp) + 1.29 + Kp;
+                //Kdp = - 0.5 * log(gpsSpeedLp) + 2.55 + Kd;
+                //Kip = 0.1;
+
+/*
 		double p7 = Kp / pow(7, -1);
 		double d7 = Kd / pow(7, -0.801);
 		double i7  = (Ki - 0.18) / 7;
@@ -496,6 +512,8 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot, dou
 			Kdp = d7 * pow(3.0, -0.801);
 			Kip = i7 * 3.0 + 0.18;
 		}
+*/
+
 		Kpp=Kp;		//  Temporarily use inputparameters
 		Kdp=Kd;
 		Kip=Ki;

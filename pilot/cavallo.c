@@ -439,12 +439,23 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 	retC.w = radtodeg(wzh) - 0.84;		// Adjust for bias
 	//ret.yaw = deg0to360(radtodeg(atan2(2*(q0*q3+q1*q2), 1-2*(q2*q2+q3*q3))));	//  Return value in deg (0 to 360 deg)
 	
-	double yaw = deg0to360(90 - radtodeg(atan2(2*(-q0*q3+q1*q2), -1+2*(q0*q0+q1*q1))));	//  Return value in deg (0 to 360 deg)
+	double yawRaw = deg0to360(90 - radtodeg(atan2(2*(-q0*q3+q1*q2), -1+2*(q0*q0+q1*q1))));	//  Return value in deg (0 to 360 deg)
 	
+        // Lp filter yawRaw
+        static double yaw = 180;
+        double kYaw = 0.016;
+        double diffYaw = yaw - yawRaw;
+        if(diffYaw >= 180) diffYaw = diffYaw - 360;
+        if(diffYaw < -180) diffYaw = diffYaw + 360;
+        yaw = yaw - kYaw * diffYaw;
+        yaw = deg0to360(yaw);
+
+        // Deviation
 	double newYaw = cyDev(yaw);
 	
 	retC.yaw = newYaw;
 
+        //printf("%f %f %f \n", yawRaw, yaw, newYaw);
 	//printf("%f %f %f %f %f\n", atan2(-my, mx), q0, q1, q2, q3);
 
 	return retC;

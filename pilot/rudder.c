@@ -111,25 +111,24 @@ void actuateRudder(double rudderSet, double rudderMeas, double *rudderIs) {
 	double pSlow = 400;
 	
 	//  Fixed gain observer  ****************************
-/*
+
 	static double lastOut = 0;
 	{	// Separate block to avoid reuse of variables
 		static double dt = 0.01;
 		static double k = 0;
-		static double T = 0.2;
-		static double k11 = 0.1;
-		static double x = 0;
+		static double T = 0.01;
+		static double k11 = 0.01;
+//		static double x = 0;
 		static double y = 0;
 		
-		if(lastOut == 800) k = 0.00565;
-		if(lastOut == 400) k = 0.0045;
+		if(lastOut == pFast) k = 0.0063;
+		if(lastOut == pSlow) k = 0.0081;
 		
-		x = x + y * dt + k11 * (rudderMeas - x);
+		*rudderIs = *rudderIs + y * dt + k11 * (rudderMeas - *rudderIs);
 		y = y *(1 - dt / T) + dt / T * k * lastOut;
 		
-		*rudderIs = x;
+//		*rudderIs = x;
 	}
-*/
 	//  ***************************************************
 	
 	int out = 0;
@@ -143,13 +142,15 @@ void actuateRudder(double rudderSet, double rudderMeas, double *rudderIs) {
 	if((-db < dr) && (dr < db)) out = 0;
 	if((db < dr) && (dr < slow)) out = pSlow;
 	if( dr > slow) out = pFast;
+
+//	printf(" %d\n", out);
 	
-	/*
+/*	
 	// Rudder test
-	static int tCount = 300;
+	static int tCount = 10;
 	static int pumpMode = 1;
-	int tOn = 300;
-	int tOff = 300;
+	int tOn = 100;
+	int tOff = 100;
 	//
 	tCount -= 1;
 	if(tCount == 0) {
@@ -161,7 +162,7 @@ void actuateRudder(double rudderSet, double rudderMeas, double *rudderIs) {
 		if(pumpMode == 2) {
 			pumpMode = 3;
 			tCount = tOn;
-			out = 800;
+			out = 400;
 		} else
 		if(pumpMode == 3) {
 			pumpMode = 4;
@@ -171,15 +172,20 @@ void actuateRudder(double rudderSet, double rudderMeas, double *rudderIs) {
 		if(pumpMode == 4) {
 			pumpMode = 1;
 			tCount = tOn;
-			out = -800;
+			out = -400;
 		} 		
 	}
-	*/	
+*/		
+
+//	printf("%d ", out);
 
 	if(out > 0) {
-		if(*rudderIs > rudderBound) {
-			//printf("Rudder out of bounds (positive)\r\n");
-			//return;
+		if(rudderMeas > rudderBound) {
+			printf("Rudder out of bounds (positive)\r\n");
+			digitalWrite(25, HIGH);
+			pwmWrite(1, 0);
+			pwmWrite(24, 0);
+			return;
 		}
 		digitalWrite(25, HIGH);
 		pwmWrite(24, 0);
@@ -187,9 +193,12 @@ void actuateRudder(double rudderSet, double rudderMeas, double *rudderIs) {
 	}
 	
 	if(out < 0) {
-		if(*rudderIs < -rudderBound) {
-			//printf("Rudder out of bounds (negative)\r\n");
-			//return;
+		if(rudderMeas < -rudderBound) {
+			printf("Rudder out of bounds (negative)\r\n");
+			digitalWrite(25, HIGH);
+			pwmWrite(1, 0);
+			pwmWrite(24, 0);
+			return;
 		}	
 		digitalWrite(25, HIGH);	
 		pwmWrite(1, 0);
@@ -212,7 +221,7 @@ void actuateRudder(double rudderSet, double rudderMeas, double *rudderIs) {
 
 	//printf("%f  %f  %f  %d\n", rudderSet, rudderMeas, *rudderIs, out);
 	
-	//lastOut = out;
+	lastOut = out;
 	
 	return;
 }
