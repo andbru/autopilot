@@ -51,10 +51,10 @@ char *dataP = data;
 char cmd[50] = "";					
 char *cmdP = cmd;
 
-double Kp = 0.9;						// Global regulator parameters
-double Kd = 1.9;
-double Ki = 0.08;
-double Km = 0.0;
+double Kp = 0;						// Global regulator parameters
+double Kd = 0;
+double Ki = 0;
+double Km = 0;
 
 int accGyroCount = 0;				// Global for sensor reading freq.
 int magCount = 0;
@@ -290,6 +290,15 @@ int main() {
 				mY = cEM7180;
 				mW = rEM7180;
 			} 
+
+
+			// Deviation
+			cY = cY + 15*sin((cY - 145)/180*3.1415) + 1;
+			cY = deg0to360(cY);
+
+			mY = mY + 38.17 * sin((mY - 55)/180 * 3.1415) + 5.5;
+			mY = deg0to360(mY);
+
                         
 			//ts = ts;
 
@@ -311,7 +320,7 @@ int main() {
 			struct fusionResult sim;
 			sim = simulate(rudderSet, 0.1);
 			
-			switch(2) {				// Chose sensor algorithm or simulation
+			switch(1) {				// Chose sensor algorithm or simulation
 				case 1:				// Madgwick
 					yawIs = mY;		
 					w = mW;
@@ -492,9 +501,9 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot, dou
 		//		Adjust regulator parameters for speed
 		if(gpsSpeedLp < 3) gpsSpeedLp = 3;	// Avoid strange speed signals
 		if(gpsSpeedLp > 25) gpsSpeedLp = 25;
-		//Kpp = - 0.5 * log(gpsSpeedLp) +  2.58 + Kp;
-		//Kdp = - log(gpsSpeedLp) + 5.10 + Kd;
-		//Kip = 0.2 + Ki;
+		Kpp = - 0.5 * log(gpsSpeedLp) +  2.38 + Kp;
+		Kdp = - log(gpsSpeedLp) + 5.10 + Kd;
+		Kip = 0.1 + Ki;
                 
                 //Kpp = - 0.25 * log(gpsSpeedLp) + 1.29 + Kp;
                 //Kdp = - 0.5 * log(gpsSpeedLp) + 2.55 + Kd;
@@ -514,9 +523,9 @@ double PIDAreg(int mode, double yawCmd, double yawIs, double w, double wDot, dou
 		}
 */
 
-		Kpp=Kp;		//  Temporarily use inputparameters
-		Kdp=Kd;
-		Kip=Ki;
+		//Kpp=Kp;		//  Temporarily use inputparameters
+		//Kdp=Kd;
+		//Kip=Ki;
 		
 		//		 Regulator errors
 		psiTilde = deg180to180(yawIs - psid);		// diff from desired setpoint

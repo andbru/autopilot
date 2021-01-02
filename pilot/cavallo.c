@@ -443,7 +443,8 @@ struct fusionResult updateCavallo(double ax, double ay, double az,
 	
         // Lp filter yawRaw
         static double yaw = 180;
-        double kYaw = 0.016;
+        //double kYaw = 0.016;
+        double kYaw = 0.1;
         double diffYaw = yaw - yawRaw;
         if(diffYaw >= 180) diffYaw = diffYaw - 360;
         if(diffYaw < -180) diffYaw = diffYaw + 360;

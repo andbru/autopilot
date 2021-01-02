@@ -101,7 +101,7 @@ void initEM7180() {
 
 	printf("%s \n", "Init EM7180 OK!");
 
-//******************  end of Init EM7180  **********************
+// ******************  end of Init EM7180  **********************
 }
 
 
@@ -157,7 +157,8 @@ int pollEM7180(float *yaw, float *w) {
 	
 	float newYaw = yawDev(Yaw);
 	
-	*yaw = newYaw;
+	// *yaw = newYaw;
+	*yaw = Yaw;
 	
 	newData += 2;
 
